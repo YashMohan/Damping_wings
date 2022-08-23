@@ -64,10 +64,10 @@ tq = 3.154*10**13
 from Parameters_temp import Parameters
 
 # Customising some parameters
-Parameters['DIM'] = 512
-Parameters['HII_DIM'] = 128
-Parameters['BOX_LEN'] = 100
-Parameters['target_xh'] = 0.25
+# Parameters['DIM'] = 512
+# Parameters['HII_DIM'] = 128
+# Parameters['BOX_LEN'] = 100
+# Parameters['target_xh'] = 0.25
 
 len_z = n_pixels
 z_red = np.linspace(Parameters['z'],Parameters['z']-1.0,num=len_z)
@@ -79,7 +79,6 @@ delta_z = 1/(n_pixels-1)
 #   Point on the surface of unit sphere
 
 def sample_spherical(npoints, ndim=3):
-    np.random.seed(10) 
     vec = np.random.randn(ndim, npoints)
     vec /= np.linalg.norm(vec, axis=0)
     return vec
@@ -132,7 +131,6 @@ def Calculate_skewers(base_halo_mass,o_halo_mass,n_halos,new_halo_coords,new_hal
     halo_y_coord = new_halo_coords[:,1]*Parameters['BOX_LEN']/Parameters['HII_DIM']
     halo_z_coord = new_halo_coords[:,2]*Parameters['BOX_LEN']/Parameters['HII_DIM']
     
-    print(len(halo_x_coord))
     
     xx = np.linspace(0,Parameters['HII_DIM']-1,Parameters['HII_DIM'])   #Region of x coordinates
     yy = np.linspace(0,Parameters['HII_DIM']-1,Parameters['HII_DIM'])   #Region of y coordinates 
@@ -162,7 +160,7 @@ def Calculate_skewers(base_halo_mass,o_halo_mass,n_halos,new_halo_coords,new_hal
     Random_halo = np.zeros(100)
     for i in range(0,100):
         Random_halo[i] = random.randrange(len(halo_x_coord))
-    
+    #ßprint(Random_halo)
     for i in range(0,100):     #for i in range(0,halo_10_11.sum()): #Loop over all sightlines
         #Updating coords along a random direction
         xi, yi, zi = sample_spherical(1)    #random direction vector
@@ -172,7 +170,6 @@ def Calculate_skewers(base_halo_mass,o_halo_mass,n_halos,new_halo_coords,new_hal
         Y[i] = halo_y_coord[int(Random_halo[i])] + dr*yi
         Z[i] = halo_z_coord[int(Random_halo[i])] + dr*zi
         
-        print(halo_x_coord[int(Random_halo[i])])
         
         #Enabling the periodic boundary condition
         X[i] = X[i] - (Parameters['HII_DIM']-1)*(np.floor(X[i])//(Parameters['HII_DIM']-1))
@@ -192,7 +189,6 @@ def Calculate_skewers(base_halo_mass,o_halo_mass,n_halos,new_halo_coords,new_hal
             
             rho_c = (3*H(z_red[k])**2)*Conversion_amu_Mpc/(8*np.pi*G)
             n_HI = Omega_b*rho_c*XH*(DEN+1)
-            print(n_HI)
             Sum[k+1] = Sum[k] + n_HI*4*np.pi*r[k+1]*r[k+1]*del_r
         
         for l in range(n_pixels-1,0,-1):        
@@ -207,8 +203,8 @@ def Calculate_skewers(base_halo_mass,o_halo_mass,n_halos,new_halo_coords,new_hal
                 xh[j] = interp_ionised_box([X[i][j],Y[i][j],Z[i][j]])
             den[j] = interp_density_field([X[i][j],Y[i][j],Z[i][j]])
     
-        pickle.dump(xh,open( f"{newpath}/xh_HM_{base_halo_mass}_{o_halo_mass}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_{i}.p", "wb" ))
-        pickle.dump(den,open( f"{newpath}/density_HM_{base_halo_mass}_{o_halo_mass}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_{i}.p", "wb" ))
+        pickle.dump(xh,open( f"{newpath}/xh_HM_{base_halo_mass}_{o_halo_mass}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_{i}_halofield.p", "wb" ))
+        pickle.dump(den,open( f"{newpath}/density_HM_{base_halo_mass}_{o_halo_mass}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_{i}_halofield.p", "wb" ))
         
     plt.imshow(ionised_box[0],extent=[Parameters['BOX_LEN'] ,0,Parameters['BOX_LEN'] ,0], origin='upper')
     
@@ -220,11 +216,11 @@ def Calculate_skewers(base_halo_mass,o_halo_mass,n_halos,new_halo_coords,new_hal
 
 if __name__ == '__main__':
     
-    halo_mass = pickle.load(open(f"{newpath}/Halo_masses_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated.p","rb"))
-    halo_coords = pickle.load(open(f"{newpath}/Halo_coords_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated.p","rb"))
+    halo_mass = pickle.load(open(f"{newpath}/Halo_masses_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.p","rb"))
+    halo_coords = pickle.load(open(f"{newpath}/Halo_coords_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.p","rb"))
     halo_mass_bins = np.unique(halo_mass)   #Checking the bins of halo masses
-    ionised_box = pickle.load( open(f"{newpath}/Ionized_box_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated.p", "rb" ))
-    density_field = pickle.load( open(f"{newpath}/Density_field_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated.p", "rb" ))
+    ionised_box = pickle.load( open(f"{newpath}/Ionized_box_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.p", "rb" ))
+    density_field = pickle.load( open(f"{newpath}/Density_field_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.p", "rb" ))
 
     Mass_bins = np.unique(halo_mass)
     n_Mass_bins = len(Mass_bins)
@@ -260,5 +256,3 @@ if __name__ == '__main__':
     #pickle.dump({base_halo_mass,o_halo_mass}, open(f"{newpath}/Halos_for_skewers","wb"))
     
     Calculate_skewers(base_halo_mass, o_halo_mass, n_halos, new_halo_coords, new_halo_mass, ionised_box, density_field)
-    
-    
