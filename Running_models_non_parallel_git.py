@@ -1,200 +1,260 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Aug 19 15:20:11 2022
+Created on Wed Aug 17 14:44:34 2022
 
 @author: sharma
+
+cleaned up versions of the code
 """
 
+#-----------------------------------------------------------------------------
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import axes3d
+from scipy import interpolate
+from scipy.interpolate import RegularGridInterpolator
+import random
+from secrets import randbelow
 import pickle
 import datetime
 import os
 import sys
-#from mpi4py import MPI
+#-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
-#For cluster
 today = str(datetime.date.today())
-# newpath = r'/data/beegfs/astro-storage/groups/davies/sharma/21cmFast_work/'+today 
+#newpath = r'/data/beegfs/astro-storage/groups/davies/sharma/21cmFast_work/'+today 
 # if not os.path.exists(newpath):
-#     os.mkdir(newpath)
+#     print("Could not find the directory to load data")
+#     sys.exit()
 
-# plotpath = newpath+'/Plots'
-# if not os.path.exists(plotpath):
-#     os.mkdir(plotpath)
-    
-#For laptop
+
+#-----------------------------------------------------------------------------
+#New path for the code in the laptop
 newpath = r'/Users/sharma/work/21cmFast_codes_and_plots/'+today 
+
 if not os.path.exists(newpath):
-    os.mkdir(newpath)
+    print("Could not find the directory to load data")
+    sys.exit()
 
-plotpath = newpath+'/Plots'
-if not os.path.exists(plotpath):
-    os.mkdir(plotpath)
-    
 #-----------------------------------------------------------------------------
-
-# For parallelization
-
-# if not os.path.exists('Parameters_temp.py'):
-
-#     import Parameters_file as Params
     
-#     #target_xh = 0.6
-#     #z = 9
-#     variables = {'target_xh': 0.5, 'z':7}
-#     #f = open(f'Parameters_temp_{rank}.py', 'w')
-#     f = open(f'/Users/sharma/work/21cmFast_codes_and_plots/Parameters_temp.py', 'w')
-#     f.write('Parameters = {\n')
-    
-#     for key, value in variables.items():
-#         f.write(f"\t'{key}':{variables[key]},\n")
-                
-#     for p in Params.Parameters:
-#         if (p not in variables):
-#             f.write(f"\t'{p}':{Params.Parameters[p]},\n")
-#             #print(p)
-#     f.seek(0,2)
-#     f.seek(f.tell() -2,0)
-#     f.truncate()
-#     f.write('}')
-#     f.close()
+#Constants
+
+n_pixels = 300
+delta = 1 #differential interval to move in pixel space
+
+H0 = 70000.0    # units: m/s/Mpc
+Omega_m = 0.3
+Omega_lambda = 0.7
+Omega_k = 0.0
+Omega_b = 0.045
+c = 3*10**8 #ms^-1
+
+G = 6.67*10**(-11) # units: m*((m/s)**2)/kg
+Conversion_amu_Mpc = (6.022/3.241)*10**49
+Nion = 10**57
+tq = 3.154*10**13
 #-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
-
-import Parameters_file as Params
-
-variables = {'target_xh': 0.25, 'z':7}
-
-if not os.path.exists('Parameters_temp.py'):
-
-    f = open(f'/Users/sharma/work/21cmFast_codes_and_plots/Parameters_temp.py', 'w')
-    f.write('Parameters = {\n')
-    
-    for key, value in variables.items():
-        f.write(f"\t'{key}':{variables[key]},\n")
-                
-    for p in Params.Parameters:
-        if (p not in variables):
-            f.write(f"\t'{p}':{Params.Parameters[p]},\n")
-            #print(p)
-    f.seek(0,2)
-    f.seek(f.tell() -2,0)
-    f.truncate()
-    f.write('}')
-    f.close()
-
-#-----------------------------------------------------------------------------
-import Generating_ionized_boxes_git as GIB
-import Calculating_skewers_git as CS
-import Damping_wings_git as DW
+#Parameters to vary
 
 from Parameters_temp import Parameters
 
-print(Parameters)
+# Customising some parameters
+# Parameters['DIM'] = 512
+# Parameters['HII_DIM'] = 128
+# Parameters['BOX_LEN'] = 100
+# Parameters['target_xh'] = 0.25
+
+len_z = n_pixels
+z_red = np.linspace(Parameters['z'],Parameters['z']-1.0,num=len_z)
+delta_z = 1/(n_pixels-1)
+
 #-----------------------------------------------------------------------------
 
-GIB.Generate_ion_boxes(newpath)
+#-----------------------------------------------------------------------------
+#   Point on the surface of unit sphere
 
-halo_mass = pickle.load(open(f"{newpath}/Halo_masses_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated.p","rb"))
-halo_coords = pickle.load(open(f"{newpath}/Halo_coords_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated.p","rb"))
-halo_mass_bins = np.unique(halo_mass)   #Checking the bins of halo masses
-ionised_box = pickle.load( open(f"{newpath}/Ionized_box_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated.p", "rb" ))
-density_field = pickle.load( open(f"{newpath}/Density_field_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated.p", "rb" ))
+def sample_spherical(npoints, ndim=3):
+    vec = np.random.randn(ndim, npoints)
+    vec /= np.linalg.norm(vec, axis=0)
+    return vec
 
-Mass_bins = np.unique(halo_mass)
-n_Mass_bins = len(Mass_bins)
+v = np.linspace(0, 1, 20)
+phi = np.arccos(2*v-1)
+theta = np.linspace(0, 2 * np.pi, 40)
+x = np.outer(np.sin(theta), np.cos(phi))
+y = np.outer(np.sin(theta), np.sin(phi))
+z = np.outer(np.cos(theta), np.ones_like(phi))
+
+#-----------------------------------------------------------------------------
+#Hubble Rate
+def H(z):
+    return H0*(Omega_m*(1+z)**3 + Omega_lambda + Omega_k*((1+z)**2))**(1/2)    
+#-----------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------
+def Calculate_skewers(base_halo_mass,o_halo_mass,n_halos,new_halo_coords,new_halo_mass,ionised_box,density_field):    
+    '''
+    Description:
+        Calculates the neutral fraction weighted over density from different halos along some random sightlines
+
+    Parameters
+    ----------
+    base_halo_mass : Integer
+        Base of the value of halo mass, it is provided to seperate halos and thier data files
+    o_halo_mass : Integer
+        Order of the value of halo mass, it is provided to seperate halos and thier data files
+    n_halos : Integer
+        Number of halos in a given mass bin
+    new_halo_coords : Array
+        x,y,z coordinates of the halos in the given mass bin
+    new_halo_mass : Array
+        masses of the halos in the given mass bin
+    ionised_box : Array
+        Neutral fraction at each pixels in the box
+    density_field : Array
+        Density of matter at each pixel in the box
+
+    Returns
+    -------
+    None.
+
+    '''
+    
+    # Storing x,y and z coords of the halos seperately
+    
+    halo_x_coord = new_halo_coords[:,0]*Parameters['BOX_LEN']/Parameters['HII_DIM'] #Coords of halos
+    halo_y_coord = new_halo_coords[:,1]*Parameters['BOX_LEN']/Parameters['HII_DIM']
+    halo_z_coord = new_halo_coords[:,2]*Parameters['BOX_LEN']/Parameters['HII_DIM']
+    
+    
+    xx = np.linspace(0,Parameters['HII_DIM']-1,Parameters['HII_DIM'])   #Region of x coordinates
+    yy = np.linspace(0,Parameters['HII_DIM']-1,Parameters['HII_DIM'])   #Region of y coordinates 
+    zz = np.linspace(0,Parameters['HII_DIM']-1,Parameters['HII_DIM'])   #Region of z coordinates
+    pixels = np.linspace(0,n_pixels-1,n_pixels)
+    
+    interp_ionised_box = RegularGridInterpolator((xx,yy,zz), ionised_box)   #Interpolation function to calculate inonisation field
+    interp_density_field = RegularGridInterpolator((xx,yy,zz), density_field)   #Interpolation function to calculate density field
+    
+    #-----------------------------------------------------------------------------
+
+    #-----------------------------------------------------------------------------
+    #Calculting the skewers
+    
+    dr = np.arange(0,n_pixels,delta)    # Distance travelled across any vector
+    
+    # Storing the coordinates along the sightline for each halo
+    
+    X = [[]*n_pixels]*100
+    Y = [[]*n_pixels]*100
+    Z = [[]*n_pixels]*100   
+    
+    # Tolerence value for ionized sphere around a halo
+    tol = 0.5
+    Rion = 0.0
+           
+    Random_halo = np.zeros(100)
+    for i in range(0,100):
+        Random_halo[i] = random.randrange(len(halo_x_coord))
+    #ßprint(Random_halo)
+    for i in range(0,100):     #for i in range(0,halo_10_11.sum()): #Loop over all sightlines
+        #Updating coords along a random direction
+        xi, yi, zi = sample_spherical(1)    #random direction vector
+        #print(sample_spherical(1))
+        
+        X[i] = halo_x_coord[int(Random_halo[i])] + dr*xi
+        Y[i] = halo_y_coord[int(Random_halo[i])] + dr*yi
+        Z[i] = halo_z_coord[int(Random_halo[i])] + dr*zi
+        
+        
+        #Enabling the periodic boundary condition
+        X[i] = X[i] - (Parameters['HII_DIM']-1)*(np.floor(X[i])//(Parameters['HII_DIM']-1))
+        Y[i] = Y[i] - (Parameters['HII_DIM']-1)*(np.floor(Y[i])//(Parameters['HII_DIM']-1))
+        Z[i] = Z[i] - (Parameters['HII_DIM']-1)*(np.floor(Z[i])//(Parameters['HII_DIM']-1))
+        
+        xh = np.zeros(n_pixels) # Calculating the x_h along (X,Y,Z)
+        den = np.zeros(n_pixels) # Calculating the density along (X,Y,Z)
+        Sum = np.zeros(n_pixels)
+        r = np.zeros(n_pixels)
+        
+        for k in range(0,n_pixels-1):
+            del_r = -(z_red[k+1] - z_red[k])*c/(H(z_red[k])*(1+z_red[k]))
+            r[k+1] = r[k] + del_r
+            XH = interp_ionised_box([X[i][k],Y[i][k],Z[i][k]])
+            DEN = interp_density_field([X[i][k],Y[i][k],Z[i][k]])
+            
+            rho_c = (3*H(z_red[k])**2)*Conversion_amu_Mpc/(8*np.pi*G)
+            n_HI = Omega_b*rho_c*XH*(DEN+1)
+            Sum[k+1] = Sum[k] + n_HI*4*np.pi*r[k+1]*r[k+1]*del_r
+        
+        for l in range(n_pixels-1,0,-1):        
+            if(np.abs(Sum[l] - Nion*tq)/(Nion*tq)<=tol):
+                Rion = r[l]
+                break
+
+        for j in range (0,n_pixels):
+            if(dr[j]<=Rion*(1+z_red[j])):    #add (1+z)
+                xh[j] = 0.0
+            else:
+                xh[j] = interp_ionised_box([X[i][j],Y[i][j],Z[i][j]])
+            den[j] = interp_density_field([X[i][j],Y[i][j],Z[i][j]])
+    
+        pickle.dump(xh,open( f"{newpath}/xh_HM_{base_halo_mass}_{o_halo_mass}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_{i}_halofield.p", "wb" ))
+        pickle.dump(den,open( f"{newpath}/density_HM_{base_halo_mass}_{o_halo_mass}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_{i}_halofield.p", "wb" ))
+        
+    plt.imshow(ionised_box[0],extent=[Parameters['BOX_LEN'] ,0,Parameters['BOX_LEN'] ,0], origin='upper')
+    
+#-----------------------------------------------------------------------------
 
 
-file = open(f"{newpath}/Halos_for_skewers.txt", 'w')
+#-----------------------------------------------------------------------------
+    
 
-for i in range(0,n_Mass_bins,int(n_Mass_bins/5)):
-    m = (halo_mass == Mass_bins[i])
+if __name__ == '__main__':
+    
+    halo_mass = pickle.load(open(f"{newpath}/Halo_masses_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.p","rb"))
+    halo_coords = pickle.load(open(f"{newpath}/Halo_coords_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.p","rb"))
+    halo_mass_bins = np.unique(halo_mass)   #Checking the bins of halo masses
+    ionised_box = pickle.load( open(f"{newpath}/Ionized_box_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.p", "rb" ))
+    density_field = pickle.load( open(f"{newpath}/Density_field_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.p", "rb" ))
+
+    Mass_bins = np.unique(halo_mass)
+    n_Mass_bins = len(Mass_bins)
+    
+    file = open(f"{newpath}/Halos_for_skewers.txt", 'w')
+    
+    for i in range(0,n_Mass_bins,int(n_Mass_bins/5)):
+        m = (halo_mass == Mass_bins[i])
+        new_halo_mass = halo_mass[m]
+        new_halo_coords = halo_coords[m]
+        n_halos = len(new_halo_mass)
+        o_halo_mass = int(np.floor(np.log10(np.unique(new_halo_mass))))
+        base_halo_mass = int(np.round(new_halo_mass[1]/(10**o_halo_mass),0))
+        print(base_halo_mass,o_halo_mass)
+        
+        file.write(f"{base_halo_mass} {o_halo_mass} \n")
+        # file.write("\t")
+        # file.write(str(o_halo_mass))
+        # file.write('\n')
+        #pickle.dump({base_halo_mass,o_halo_mass}, open(f"{newpath}/Halos_for_skewers","wb"))
+        
+        Calculate_skewers(base_halo_mass, o_halo_mass, n_halos, new_halo_coords, new_halo_mass, ionised_box, density_field)
+    
+    m = (halo_mass == Mass_bins[n_Mass_bins-1])
     new_halo_mass = halo_mass[m]
     new_halo_coords = halo_coords[m]
     n_halos = len(new_halo_mass)
     o_halo_mass = int(np.floor(np.log10(np.unique(new_halo_mass))))
-    base_halo_mass = int(np.round(new_halo_mass[1]/(10**o_halo_mass),0))
+    base_halo_mass = int(np.round(new_halo_mass[0]/(10**o_halo_mass),0))
     print(base_halo_mass,o_halo_mass)
-    
-    file.write(f"{base_halo_mass} {o_halo_mass} \n")
-    # file.write("\t")
-    # file.write(str(o_halo_mass))
-    # file.write('\n')
+    file.write(f"{base_halo_mass} {o_halo_mass}")
+    file.close()
     #pickle.dump({base_halo_mass,o_halo_mass}, open(f"{newpath}/Halos_for_skewers","wb"))
     
-    CS.Calculate_skewers(base_halo_mass, o_halo_mass, n_halos, new_halo_coords, new_halo_mass, ionised_box, density_field)
-
-m = (halo_mass == Mass_bins[n_Mass_bins-1])
-new_halo_mass = halo_mass[m]
-new_halo_coords = halo_coords[m]
-n_halos = len(new_halo_mass)
-o_halo_mass = int(np.floor(np.log10(np.unique(new_halo_mass))))
-base_halo_mass = int(np.round(new_halo_mass[0]/(10**o_halo_mass),0))
-print(base_halo_mass,o_halo_mass)
-file.write(f"{base_halo_mass} {o_halo_mass}")
-file.close()
-#pickle.dump({base_halo_mass,o_halo_mass}, open(f"{newpath}/Halos_for_skewers","wb"))
-
-CS.Calculate_skewers(base_halo_mass, o_halo_mass, n_halos, new_halo_coords, new_halo_mass, ionised_box, density_field)
-
-base = []
-order = []
-file = open(f"{newpath}/Halos_for_skewers.txt",'r')
-for l in file.readlines():
-    b, o = l.strip().split(" ")
-    base.append(int(b))
-    order.append(int(o))
+    Calculate_skewers(base_halo_mass, o_halo_mass, n_halos, new_halo_coords, new_halo_mass, ionised_box, density_field)
     
-base = np.array(base)
-order = np.array(order)    
-#sys.exit()
-
-for i in range(0,len(base)):
-    DW.Damping_Wings(base[i], order[i])
- 
-#Plottting the damping wings
-
-lamda = pickle.load(open(f"{newpath}/lamda_z_{Parameters['z']}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated.p", "rb" ))
-
-e_tau_avg = []
-tau_z = []
-
-plt.figure(figsize=(5, 6), dpi=150)
-ax = plt.axes()
-plt.minorticks_on() 
-ax.tick_params('both', which='major', length=16, width=1, direction='in', top=True, right=True)
-ax.tick_params('both', which='minor', length=8, width=1, direction='in', top=True, right=True)
-plt.title(f"Averaged damping wings for various halo masses (xh = {Parameters['target_xh']})")
-for i in range(0,len(base)):
-    e_tau_avg.append(pickle.load(open(f"{newpath}/e_tau_avg_Mass_{base[i]}_{order[i]}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated.p", "rb" )))
-    tau_z.append(pickle.load(open(f"{newpath}/tau_z_all_Mass_{base[i]}_{order[i]}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated.p", "rb" )))
-    plt.plot(lamda,e_tau_avg[i], label = f'{base[i]}*{order[i]}')
-
-ax.set_ylabel(r'$e^{-\tau{D}}$',  fontsize=20)
-ax.set_xlabel(r"$\lambda_{\alpha}(1+z)~~Å$",  fontsize=20)
-plt.xlim(1200,1240)
-plt.tight_layout()
-legend = plt.legend(loc='upper left', fontsize='small')
-plt.savefig(f"{plotpath}/Damping_wings_averaged_xh_{Parameters['target_xh']}.png")
-plt.show()
-plt.close()
-# new_halo_coords, new_halo_mass = CS.n_11(halo_coords, halo_mass)
-# CS.Calculate_skewers(11, new_halo_coords, new_halo_mass, ionised_box, density_field)
-
-# new_halo_coords, new_halo_mass = CS.n_halo(10, halo_coords, halo_mass)
-# CS.Calculate_skewers(10, new_halo_coords, new_halo_mass, ionised_box, density_field)
-
-# new_halo_coords, new_halo_mass = CS.n_halo(9, halo_coords, halo_mass)
-# CS.Calculate_skewers(9, new_halo_coords, new_halo_mass, ionised_box, density_field)
-
-# DW.Damping_Wings(11)
-# DW.Damping_Wings(10)
-# DW.Damping_Wings(9)
-#-----------------------------------------------------------------------------
-
-
+    
