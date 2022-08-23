@@ -81,9 +81,10 @@ if not os.path.exists(newpath):
 from Parameters_temp import Parameters
 
 # Customising some parameters
-Parameters['DIM'] = 512
-Parameters['HII_DIM'] = 128
-Parameters['BOX_LEN'] = 100
+# Parameters['DIM'] = 512
+# Parameters['HII_DIM'] = 128
+# Parameters['BOX_LEN'] = 100
+# Parameters['target_xh'] = 0.25
 
 #----------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -210,8 +211,6 @@ def Generate_ion_boxes(newpath):
         redshift = Parameters['z'],
         init_boxes = initial_conditions,
         halo_field = Halo_field,
-        #astro_params = p21c.AstroParams({"ION_Tvir_MIN":T_vir, "M_TURN":M_min, "F_ESC10":f_esc, "ALPHA_ESC":alpha_esc}),
-        #astro_params = p21c.AstroParams({"ION_Tvir_MIN":T_vir, "M_TURN":M_min, "HII_EFF_FACTOR":H_II}),
         astro_params = p21c.AstroParams({"ION_Tvir_MIN":Parameters['T_vir'], "M_TURN":Parameters['M_min'], "F_ESC10":f_esc, "ALPHA_ESC":Parameters['alpha_esc']}),
         flag_options= flags
         )   
@@ -236,19 +235,20 @@ def Generate_ion_boxes(newpath):
         )
     
     global_xH = np.mean(ionized_field.xH_box)
+    print(global_xH,' mean xH')
     #-----------------------------------------------------------------------------
     
     #-----------------------------------------------------------------------------
     # Saving the data
     print("Writing data to files")
         
-    pickle.dump(ionized_field.xH_box,open( f"{newpath}/Ionized_box_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated.p", "wb" ))
-    pickle.dump(perturbed_field.density,open( f"{newpath}/Density_field_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated.p", "wb" ))
-    pickle.dump(Updated_Halo_field.halo_coords,open( f"{newpath}/Halo_coords_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated.p", "wb" ))
-    pickle.dump(Updated_Halo_field.halo_masses,open( f"{newpath}/Halo_masses_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated.p", "wb" ))
+    pickle.dump(ionized_field.xH_box,open( f"{newpath}/Ionized_box_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.p", "wb" ))
+    pickle.dump(perturbed_field.density,open( f"{newpath}/Density_field_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.p", "wb" ))
+    pickle.dump(Updated_Halo_field.halo_coords,open( f"{newpath}/Halo_coords_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.p", "wb" ))
+    pickle.dump(Updated_Halo_field.halo_masses,open( f"{newpath}/Halo_masses_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.p", "wb" ))
         
     plotting.coeval_sliceplot(ionized_field, "xH_box");
-    plt.savefig(f"{newpath}/Plots/ionised_box_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated.png" )
+    plt.savefig(f"{newpath}/Plots/ionised_box_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.png" )
     
     # Comparing 21cmfast halo mass function with HMFCalc halo mass function
     print("plotting the halo mass function")
@@ -286,6 +286,3 @@ def Generate_ion_boxes(newpath):
 
 if __name__ == '__main__':
     Generate_ion_boxes(newpath)
-
-
-
