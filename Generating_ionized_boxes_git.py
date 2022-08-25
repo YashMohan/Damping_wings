@@ -102,7 +102,7 @@ mf = MassFunction(z = Parameters['z'], Mmin = Parameters['M_min'], Mmax = 12.0)
 #Setting up flags
 
 flags = p21c.inputs.FlagOptions(
-    USE_HALO_FIELD = True,   # To use halo field while updating ionised box
+    #USE_HALO_FIELD = True,   # To use halo field while updating ionised box
     M_MIN_in_Mass = True,    # To enable the lower mass limit on halos 
     USE_MASS_DEPENDENT_ZETA = True     # To use M_MIN_in_Mass
     )
@@ -157,7 +157,7 @@ def Calibrate(HII_f_esc):
     '''
     ionized_field = p21c.ionize_box(
         perturbed_field = perturbed_field,
-        astro_params = p21c.AstroParams({"ION_Tvir_MIN":Parameters['T_vir'], "M_TURN":Parameters['M_min'], "F_ESC10":HII_f_esc, "ALPHA_ESC":Parameters['alpha_esc']}),
+        astro_params = p21c.AstroParams({"ION_Tvir_MIN":Parameters['T_vir'], "M_TURN":Parameters['M_min'], "F_ESC10":HII_f_esc, "F_STAR10":Parameters['f_star'], "ALPHA_ESC":Parameters['alpha_esc'], "ALPHA_STAR":Parameters['alpha_star']}),
         flag_options= flags, 
     )
     return np.mean(ionized_field.xH_box) - Parameters['target_xh']
@@ -198,7 +198,7 @@ def Generate_ion_boxes(newpath):
     Halo_field = p21c.determine_halo_list(
         redshift = Parameters['z'],
         init_boxes = initial_conditions,
-        astro_params = p21c.AstroParams({"ION_Tvir_MIN":Parameters['T_vir'], "M_TURN":Parameters['M_min'], "F_ESC10":f_esc, "ALPHA_ESC":Parameters['alpha_esc']}),
+        astro_params = p21c.AstroParams({"ION_Tvir_MIN":Parameters['T_vir'], "M_TURN":Parameters['M_min'], "F_ESC10":f_esc, "F_STAR10":Parameters['f_star'], "ALPHA_ESC":Parameters['alpha_esc'], "ALPHA_STAR":Parameters['alpha_star']}),
         flag_options= flags
         )
     #-----------------------------------------------------------------------------
@@ -211,7 +211,7 @@ def Generate_ion_boxes(newpath):
         redshift = Parameters['z'],
         init_boxes = initial_conditions,
         halo_field = Halo_field,
-        astro_params = p21c.AstroParams({"ION_Tvir_MIN":Parameters['T_vir'], "M_TURN":Parameters['M_min'], "F_ESC10":f_esc, "ALPHA_ESC":Parameters['alpha_esc']}),
+        astro_params = p21c.AstroParams({"ION_Tvir_MIN":Parameters['T_vir'], "M_TURN":Parameters['M_min'], "F_ESC10":f_esc, "F_STAR10":Parameters['f_star'], "ALPHA_ESC":Parameters['alpha_esc'], "ALPHA_STAR":Parameters['alpha_star']}),
         flag_options= flags
         )   
     #-----------------------------------------------------------------------------
@@ -228,10 +228,10 @@ def Generate_ion_boxes(newpath):
     print("Updating ionized boxes")
     
     ionized_field = p21c.ionize_box(
-        astro_params = p21c.AstroParams({"ION_Tvir_MIN":Parameters['T_vir'], "M_TURN":Parameters['M_min'], "F_ESC10":f_esc, "ALPHA_ESC":Parameters['alpha_esc']}),
+        astro_params = p21c.AstroParams({"ION_Tvir_MIN":Parameters['T_vir'], "M_TURN":Parameters['M_min'], "F_ESC10":f_esc, "F_STAR10":Parameters['f_star'], "ALPHA_ESC":Parameters['alpha_esc'], "ALPHA_STAR":Parameters['alpha_star']}),
         flag_options= flags,
-        perturbed_field = perturbed_field,
-        pt_halos = Updated_Halo_field   #Inclusion or exclusion of this command didn't make much difference on the final ionised box, enabling the halo field flag did
+        perturbed_field = perturbed_field
+        #pt_halos = Updated_Halo_field   #Inclusion or exclusion of this command didn't make much difference on the final ionised box, enabling the halo field flag did
         )
     
     global_xH = np.mean(ionized_field.xH_box)
@@ -242,13 +242,13 @@ def Generate_ion_boxes(newpath):
     # Saving the data
     print("Writing data to files")
         
-    pickle.dump(ionized_field.xH_box,open( f"{newpath}/Ionized_box_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.p", "wb" ))
-    pickle.dump(perturbed_field.density,open( f"{newpath}/Density_field_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.p", "wb" ))
-    pickle.dump(Updated_Halo_field.halo_coords,open( f"{newpath}/Halo_coords_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.p", "wb" ))
-    pickle.dump(Updated_Halo_field.halo_masses,open( f"{newpath}/Halo_masses_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.p", "wb" ))
+    pickle.dump(ionized_field.xH_box,open( f"{newpath}/Ionized_box_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "wb" ))
+    pickle.dump(perturbed_field.density,open( f"{newpath}/Density_field_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "wb" ))
+    pickle.dump(Updated_Halo_field.halo_coords,open( f"{newpath}/Halo_coords_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "wb" ))
+    pickle.dump(Updated_Halo_field.halo_masses,open( f"{newpath}/Halo_masses_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "wb" ))
         
     plotting.coeval_sliceplot(ionized_field, "xH_box");
-    plt.savefig(f"{newpath}/Plots/ionised_box_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.png" )
+    plt.savefig(f"{newpath}/Plots/ionised_box_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.png" )
     
     # Comparing 21cmfast halo mass function with HMFCalc halo mass function
     print("plotting the halo mass function")
@@ -286,3 +286,6 @@ def Generate_ion_boxes(newpath):
 
 if __name__ == '__main__':
     Generate_ion_boxes(newpath)
+
+
+
