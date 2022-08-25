@@ -203,8 +203,8 @@ def Calculate_skewers(base_halo_mass,o_halo_mass,n_halos,new_halo_coords,new_hal
                 xh[j] = interp_ionised_box([X[i][j],Y[i][j],Z[i][j]])
             den[j] = interp_density_field([X[i][j],Y[i][j],Z[i][j]])
     
-        pickle.dump(xh,open( f"{newpath}/xh_HM_{base_halo_mass}_{o_halo_mass}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_{i}_halofield.p", "wb" ))
-        pickle.dump(den,open( f"{newpath}/density_HM_{base_halo_mass}_{o_halo_mass}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_{i}_halofield.p", "wb" ))
+        pickle.dump(xh,open( f"{newpath}/xh_HM_{base_halo_mass}_{o_halo_mass}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_{i}_no_halofield.p", "wb" ))
+        pickle.dump(den,open( f"{newpath}/density_HM_{base_halo_mass}_{o_halo_mass}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_{i}_no_halofield.p", "wb" ))
         
     plt.imshow(ionised_box[0],extent=[Parameters['BOX_LEN'] ,0,Parameters['BOX_LEN'] ,0], origin='upper')
     
@@ -216,11 +216,11 @@ def Calculate_skewers(base_halo_mass,o_halo_mass,n_halos,new_halo_coords,new_hal
 
 if __name__ == '__main__':
     
-    halo_mass = pickle.load(open(f"{newpath}/Halo_masses_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.p","rb"))
-    halo_coords = pickle.load(open(f"{newpath}/Halo_coords_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.p","rb"))
+    halo_mass = pickle.load(open(f"{newpath}/Halo_masses_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p","rb"))
+    halo_coords = pickle.load(open(f"{newpath}/Halo_coords_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p","rb"))
     halo_mass_bins = np.unique(halo_mass)   #Checking the bins of halo masses
-    ionised_box = pickle.load( open(f"{newpath}/Ionized_box_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.p", "rb" ))
-    density_field = pickle.load( open(f"{newpath}/Density_field_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.p", "rb" ))
+    ionised_box = pickle.load( open(f"{newpath}/Ionized_box_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "rb" ))
+    density_field = pickle.load( open(f"{newpath}/Density_field_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "rb" ))
 
     Mass_bins = np.unique(halo_mass)
     n_Mass_bins = len(Mass_bins)
@@ -256,3 +256,5 @@ if __name__ == '__main__':
     #pickle.dump({base_halo_mass,o_halo_mass}, open(f"{newpath}/Halos_for_skewers","wb"))
     
     Calculate_skewers(base_halo_mass, o_halo_mass, n_halos, new_halo_coords, new_halo_mass, ionised_box, density_field)
+    
+    
