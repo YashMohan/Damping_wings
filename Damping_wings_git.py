@@ -99,8 +99,8 @@ def Damping_Wings(base,order):
         
         zb = Parameters['z']
         ze = Parameters['z'] - dl*H(Parameters['z'])/(c)
-        xh = pickle.load( open( f"{newpath}/xh_HM_{base}_{order}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_{j}_halofield.p", "rb" ) )
-        den = pickle.load( open( f"{newpath}/density_HM_{base}_{order}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_{j}_halofield.p", "rb" ) )
+        xh = pickle.load( open( f"{newpath}/xh_HM_{base}_{order}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_{j}_no_halofield.p", "rb" ) )
+        den = pickle.load( open( f"{newpath}/density_HM_{base}_{order}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_{j}_no_halofield.p", "rb" ) )
         
         for i in range(1,n_pixels):
             zb = Parameters['z'] - i*dl*H(zb)/(c)
@@ -127,9 +127,9 @@ def Damping_Wings(base,order):
     
     e_tau_avg = np.exp(-tau_avg)
     
-    pickle.dump(lamda,open( f"{newpath}/lamda_z_{Parameters['z']}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.p", "wb" ))
-    pickle.dump(e_tau_avg,open(f"{newpath}/e_tau_avg_Mass_{base}_{order}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.p","wb"))
-    pickle.dump(tau_z,open(f"{newpath}/tau_z_all_Mass_{base}_{order}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.p","wb"))
+    pickle.dump(lamda,open( f"{newpath}/lamda_z_{Parameters['z']}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "wb" ))
+    pickle.dump(e_tau_avg,open(f"{newpath}/e_tau_avg_Mass_{base}_{order}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p","wb"))
+    pickle.dump(tau_z,open(f"{newpath}/tau_z_all_Mass_{base}_{order}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p","wb"))
     
     plt.plot(lamda,e_tau_avg,'k--' , label = 'Average value')
     ax.set_ylabel(r'$e^{-\tau{D}}$',  fontsize=20)
@@ -138,7 +138,7 @@ def Damping_Wings(base,order):
     plt.tight_layout()
     #legend = ax.legend(loc='center right', shadow=True, fontsize='large')
     #legend.get_frame().set_facecolor('C0')
-    plt.savefig(f"{newpath}/Plots/Damping_wing_Mass_{base}_{order}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_z_{Parameters['z']}_calibrated_halofield.png")
+    plt.savefig(f"{newpath}/Plots/Damping_wing_Mass_{base}_{order}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.png")
     plt.show()
     plt.close()
 
