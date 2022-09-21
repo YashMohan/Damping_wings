@@ -7,14 +7,12 @@ Created on Fri Aug 19 14:54:03 2022
 """
 
 import numpy as np
-from scipy.integrate import odeint
-from matplotlib.lines import Line2D
-import numpy as np
 import matplotlib.pyplot as plt
 import pickle
 import os
 import sys
 import datetime
+import importlib
 #-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
@@ -33,25 +31,12 @@ newpath = r'/Users/sharma/work/21cmFast_codes_and_plots/'+today
 #-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
-#Parameters to vary
-from Parameters_temp import Parameters
-
-# Customising some parameters
-# Parameters['DIM'] = 512
-# Parameters['HII_DIM'] = 128
-# Parameters['BOX_LEN'] = 100
-# Parameters['target_xh'] = 0.25
-
-#-----------------------------------------------------------------------------
-
-#-----------------------------------------------------------------------------
 # Constants
 
 H0 = 70000.0    #m/s/Mpc
 Omega_m = 0.3
 Omega_lambda = 0.7
 Omega_k = 0.0
-tau_gp = (7.16*10**5)*((1+Parameters['z'])/10)**(3/2)
 Lambda = 6.25*10**8 #s^-1
 nu_alpha = 2.47*10**15  # hz
 R_alpha = Lambda/(4*np.pi*nu_alpha)
@@ -74,9 +59,35 @@ def H(z):
     return H0*(Omega_m*(1+z)**3 + Omega_lambda + Omega_k*((1+z)**2))**(1/2)    
 #-----------------------------------------------------------------------------
 
-def Damping_Wings(base,order):
-    #-----------------------------------------------------------------------------
+def Damping_Wings(rank,base,order):
+    '''
     
+
+    Parameters
+    ----------
+    rank : TYPE
+        DESCRIPTION.
+    base : TYPE
+        DESCRIPTION.
+    order : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    '''
+    #----------------------------------------------------------------------------------------------------------------------------------------------------------
+    # Importing parameters 
+
+    Para = importlib.import_module(f'Parameters_temp_{rank}')
+    Parameters = Para.Parameters
+
+    #----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    
+    tau_gp = (7.16*10**5)*((1+Parameters['z'])/10)**(3/2)
+
     #Calculating damping wings weighted over density
     
     len_z = n_pixels
@@ -86,6 +97,10 @@ def Damping_Wings(base,order):
     tau_avg = np.zeros(n_pixels)
     tau_z = np.zeros((N,n_pixels))
     tau_scatter = np.zeros((N,n_pixels))
+    
+    low_quantile = np.zeros(n_pixels)
+    mid_quantile = np.zeros(n_pixels)
+    up_quantile = np.zeros(n_pixels)
     
     plt.figure(figsize=(5, 6), dpi=150)
     ax = plt.axes()
@@ -121,10 +136,7 @@ def Damping_Wings(base,order):
         lamda = (1+z)*1215.67/(1+Parameters['z'])
 
         plt.plot(lamda,e_tau_z)
-    
-    tau_scatter = (tau_z - tau_avg)**2
-
-    
+        
     e_tau_avg = np.exp(-tau_avg)
     
     pickle.dump(lamda,open( f"{newpath}/lamda_z_{Parameters['z']}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "wb" ))
@@ -141,19 +153,37 @@ def Damping_Wings(base,order):
     plt.savefig(f"{newpath}/Plots/Damping_wing_Mass_{base}_{order}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.png")
     plt.show()
     plt.close()
+    
+    for i in range(0,n_pixels):
+        low_quantile[i] = np.quantile(np.exp(-tau_z[:,i]),0.16)
+        mid_quantile[i] = np.quantile(np.exp(-tau_z[:,i]),0.50)
+        up_quantile[i] = np.quantile(np.exp(-tau_z[:,i]),0.84)
+        
+    pickle.dump(low_quantile,open(f"{newpath}/lower_quantile_{base}_{order}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p","wb"))
+    pickle.dump(mid_quantile,open(f"{newpath}/middle_quantile_{base}_{order}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p","wb"))
+    pickle.dump(up_quantile,open(f"{newpath}/upper_quantile_{base}_{order}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p","wb"))
+    
 
 if __name__ == '__main__':
     
+
     base = []
-    order = []
-    file = open(f"{newpath}/Halos_for_skewers.txt",'r')
-    for l in file.readlines():
-        b, o = l.strip().split(" ")
-        base.append(int(b))
-        order.append(int(o))
+    # order = []
+    # num_halos = []
+    # mass_halos = []
+    # file = open(f"{newpath}/Halos_for_skewers.txt",'r')
+    # for l in file.readlines():
+    #     b, o, n, m = l.strip().split(" ")
+    #     base.append(int(b))
+    #     order.append(int(o))
+    #     num_halos.append(n)
+    #     mass_halos.append(m)
         
-    base = np.array(base)
-    order = np.array(order)    
+    # base = np.array(base)
+    # order = np.array(order)
+    # num_halos = np.array(num_halos)
+    # mass_halos = np.array(mass_halos)
+    # #sys.exit()
     
-    for i in range(0,len(base)):
-        Damping_Wings(base[i], order[i])
+    # for i in range(0,len(base)):
+    #     Damping_Wings(base[i], order[i])
