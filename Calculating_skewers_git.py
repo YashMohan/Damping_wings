@@ -11,15 +11,14 @@ cleaned up versions of the code
 #-----------------------------------------------------------------------------
 import matplotlib.pyplot as plt
 import numpy as np
-from mpl_toolkits.mplot3d import axes3d
-from scipy import interpolate
 from scipy.interpolate import RegularGridInterpolator
 import random
-from secrets import randbelow
 import pickle
 import datetime
 import os
 import sys
+import importlib
+
 #-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
@@ -55,25 +54,10 @@ c = 3*10**8 #ms^-1
 G = 6.67*10**(-11) # units: m*((m/s)**2)/kg
 Conversion_amu_Mpc = (6.022/3.241)*10**49
 Nion = 10**57
-tq = 3.154*10**13
+tq = 3.154*10**13 # units: s
 #-----------------------------------------------------------------------------
 
-#-----------------------------------------------------------------------------
-#Parameters to vary
 
-from Parameters_temp import Parameters
-
-# Customising some parameters
-# Parameters['DIM'] = 512
-# Parameters['HII_DIM'] = 128
-# Parameters['BOX_LEN'] = 100
-# Parameters['target_xh'] = 0.25
-
-len_z = n_pixels
-z_red = np.linspace(Parameters['z'],Parameters['z']-1.0,num=len_z)
-delta_z = 1/(n_pixels-1)
-
-#-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
 #   Point on the surface of unit sphere
@@ -97,13 +81,15 @@ def H(z):
 #-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
-def Calculate_skewers(base_halo_mass,o_halo_mass,n_halos,new_halo_coords,new_halo_mass,ionised_box,density_field):    
+def Calculate_skewers(rank,base_halo_mass,o_halo_mass,n_halos,new_halo_coords,new_halo_mass,ionised_box,density_field):    
     '''
     Description:
         Calculates the neutral fraction weighted over density from different halos along some random sightlines
 
     Parameters
     ----------
+    rank : Integer
+        To select the specific parameters file and use for parallelisation 
     base_halo_mass : Integer
         Base of the value of halo mass, it is provided to seperate halos and thier data files
     o_halo_mass : Integer
@@ -124,6 +110,18 @@ def Calculate_skewers(base_halo_mass,o_halo_mass,n_halos,new_halo_coords,new_hal
     None.
 
     '''
+    
+    #----------------------------------------------------------------------------------------------------------------------------------------------------------
+    # Importing parameters 
+
+    Para = importlib.import_module(f'Parameters_temp_{rank}')
+    Parameters = Para.Parameters
+
+    len_z = n_pixels
+    z_red = np.linspace(Parameters['z'],Parameters['z']-1.0,num=len_z)
+    delta_z = 1/(n_pixels-1)
+
+    #-----------------------------------------------------------------------------
     
     # Storing x,y and z coords of the halos seperately
     
@@ -216,45 +214,46 @@ def Calculate_skewers(base_halo_mass,o_halo_mass,n_halos,new_halo_coords,new_hal
 
 if __name__ == '__main__':
     
-    halo_mass = pickle.load(open(f"{newpath}/Halo_masses_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p","rb"))
-    halo_coords = pickle.load(open(f"{newpath}/Halo_coords_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p","rb"))
-    halo_mass_bins = np.unique(halo_mass)   #Checking the bins of halo masses
-    ionised_box = pickle.load( open(f"{newpath}/Ionized_box_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "rb" ))
-    density_field = pickle.load( open(f"{newpath}/Density_field_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "rb" ))
+    zzz=1
+    
+    # halo_mass = pickle.load(open(f"{newpath}/Halo_masses_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p","rb"))
+    # halo_coords = pickle.load(open(f"{newpath}/Halo_coords_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p","rb"))
+    # halo_mass_bins = np.unique(halo_mass)   #Checking the bins of halo masses
+    # ionised_box = pickle.load( open(f"{newpath}/Ionized_box_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "rb" ))
+    # density_field = pickle.load( open(f"{newpath}/Density_field_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "rb" ))
 
-    Mass_bins = np.unique(halo_mass)
-    n_Mass_bins = len(Mass_bins)
+    # Mass_bins = np.unique(halo_mass)
+    # n_Mass_bins = len(Mass_bins)
     
-    file = open(f"{newpath}/Halos_for_skewers.txt", 'w')
+    # file = open(f"{newpath}/Halos_for_skewers_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.txt", 'w')
     
-    for i in range(0,n_Mass_bins,int(n_Mass_bins/5)):
-        m = (halo_mass == Mass_bins[i])
-        new_halo_mass = halo_mass[m]
-        new_halo_coords = halo_coords[m]
-        n_halos = len(new_halo_mass)
-        o_halo_mass = int(np.floor(np.log10(np.unique(new_halo_mass))))
-        base_halo_mass = int(np.round(new_halo_mass[1]/(10**o_halo_mass),0))
-        print(base_halo_mass,o_halo_mass)
+    # for i in range(0,n_Mass_bins,int(n_Mass_bins/5)):
+    #     m = (halo_mass == Mass_bins[i])
+    #     new_halo_mass = halo_mass[m]
+    #     new_halo_coords = halo_coords[m]
+    #     n_halos = len(new_halo_mass)
+    #     o_halo_mass = int(np.floor(np.log10(np.unique(new_halo_mass))))
+    #     base_halo_mass = int(np.round(new_halo_mass[1]/(10**o_halo_mass),0))
+    #     print(base_halo_mass,o_halo_mass)
         
-        file.write(f"{base_halo_mass} {o_halo_mass} \n")
-        # file.write("\t")
-        # file.write(str(o_halo_mass))
-        # file.write('\n')
-        #pickle.dump({base_halo_mass,o_halo_mass}, open(f"{newpath}/Halos_for_skewers","wb"))
+    #     file.write(f"{base_halo_mass} {o_halo_mass} \n")
+    #     # file.write("\t")
+    #     # file.write(str(o_halo_mass))
+    #     # file.write('\n')
+    #     #pickle.dump({base_halo_mass,o_halo_mass}, open(f"{newpath}/Halos_for_skewers","wb"))
         
-        Calculate_skewers(base_halo_mass, o_halo_mass, n_halos, new_halo_coords, new_halo_mass, ionised_box, density_field)
+    #     Calculate_skewers(base_halo_mass, o_halo_mass, n_halos, new_halo_coords, new_halo_mass, ionised_box, density_field)
     
-    m = (halo_mass == Mass_bins[n_Mass_bins-1])
-    new_halo_mass = halo_mass[m]
-    new_halo_coords = halo_coords[m]
-    n_halos = len(new_halo_mass)
-    o_halo_mass = int(np.floor(np.log10(np.unique(new_halo_mass))))
-    base_halo_mass = int(np.round(new_halo_mass[0]/(10**o_halo_mass),0))
-    print(base_halo_mass,o_halo_mass)
-    file.write(f"{base_halo_mass} {o_halo_mass}")
-    file.close()
-    #pickle.dump({base_halo_mass,o_halo_mass}, open(f"{newpath}/Halos_for_skewers","wb"))
+    # m = (halo_mass == Mass_bins[n_Mass_bins-1])
+    # new_halo_mass = halo_mass[m]
+    # new_halo_coords = halo_coords[m]
+    # n_halos = len(new_halo_mass)
+    # o_halo_mass = int(np.floor(np.log10(np.unique(new_halo_mass))))
+    # base_halo_mass = int(np.round(new_halo_mass[0]/(10**o_halo_mass),0))
+    # print(base_halo_mass,o_halo_mass)
+    # file.write(f"{base_halo_mass} {o_halo_mass}")
+    # file.close()
+    # #pickle.dump({base_halo_mass,o_halo_mass}, open(f"{newpath}/Halos_for_skewers","wb"))
     
-    Calculate_skewers(base_halo_mass, o_halo_mass, n_halos, new_halo_coords, new_halo_mass, ionised_box, density_field)
-    
+    # Calculate_skewers(base_halo_mass, o_halo_mass, n_halos, new_halo_coords, new_halo_mass, ionised_box, density_field)
     
