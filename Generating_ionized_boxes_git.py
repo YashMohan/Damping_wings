@@ -37,6 +37,8 @@ from scipy import optimize
 
 from py21cmfast import global_params
 
+import importlib
+
 #To calculate the code processing time
 import time
 time_start = time.perf_counter()
@@ -73,30 +75,8 @@ newpath = r'/Users/sharma/work/21cmFast_codes_and_plots/'+today
 if not os.path.exists(newpath):
     os.mkdir(newpath)
 #----------------------------------------------------------------------------------------------------------------------------------------------------------
-    
 
 #----------------------------------------------------------------------------------------------------------------------------------------------------------
-# Importing parameters 
-
-from Parameters_temp import Parameters
-
-# Customising some parameters
-# Parameters['DIM'] = 512
-# Parameters['HII_DIM'] = 128
-# Parameters['BOX_LEN'] = 100
-# Parameters['target_xh'] = 0.25
-
-#----------------------------------------------------------------------------------------------------------------------------------------------------------
-
-#----------------------------------------------------------------------------------------------------------------------------------------------------------
-
-
-#----------------------------------------------------------------------------------------------------------------------------------------------------------
-# Halo Mass Function from HMFCalc to cross check our HMF from 21cmFast
-mf = MassFunction(z = Parameters['z'], Mmin = Parameters['M_min'], Mmax = 12.0)
-
-#----------------------------------------------------------------------------------------------------------------------------------------------------------
-
 
 #-----------------------------------------------------------------------------
 #Setting up flags
@@ -109,33 +89,10 @@ flags = p21c.inputs.FlagOptions(
 
 #-----------------------------------------------------------------------------
     
-#-----------------------------------------------------------------------------
-#Setting up initial conditions
-
-initial_conditions = p21c.initial_conditions(
-    user_params = {"DIM": Parameters['DIM'] , "HII_DIM": Parameters['HII_DIM'], "BOX_LEN": Parameters['BOX_LEN']},
-    cosmo_params = p21c.CosmoParams(SIGMA_8=0.8, OMm = 0.3, OMb = 0.045),
-    random_seed=54321
-    )
-    
-    
-plotting.coeval_sliceplot(initial_conditions, "hires_density");
-
-#-----------------------------------------------------------------------------
-    
-#-----------------------------------------------------------------------------
-#Setting up the ionized box at the given redshift and initial conditions
-
-perturbed_field = p21c.perturb_field(
-    redshift = Parameters['z'],
-    init_boxes = initial_conditions
-    )
-
-#-----------------------------------------------------------------------------
 
 #----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-def Calibrate(HII_f_esc):
+def Calibrate(HII_f_esc, perturbed_field, Parameters):
     
     '''
     
@@ -148,7 +105,12 @@ def Calibrate(HII_f_esc):
     HII_f_esc : float
         Takes up the value of HII efficiency/ f_escape factor to calibrate the value of initial neutral H fraction depending upon the value of counter
     
-           
+     
+    perturbed_field : 
+        
+    Parameterse : Dictionary 
+        Provides the list of parameters to run the ionized box
+          
     Returns
     -------
     float
@@ -160,11 +122,12 @@ def Calibrate(HII_f_esc):
         astro_params = p21c.AstroParams({"ION_Tvir_MIN":Parameters['T_vir'], "M_TURN":Parameters['M_min'], "F_ESC10":HII_f_esc, "F_STAR10":Parameters['f_star'], "ALPHA_ESC":Parameters['alpha_esc'], "ALPHA_STAR":Parameters['alpha_star']}),
         flag_options= flags, 
     )
+    #print(np.mean(ionized_field.xH_box))
     return np.mean(ionized_field.xH_box) - Parameters['target_xh']
 
 #----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-def Generate_ion_boxes(newpath):
+def Generate_ion_boxes(newpath,rank):
     
     '''
     
@@ -183,14 +146,52 @@ def Generate_ion_boxes(newpath):
     
 
     '''
+    #----------------------------------------------------------------------------------------------------------------------------------------------------------
+    # Importing parameters 
+
+    Para = importlib.import_module(f'Parameters_temp_{rank}')
+    Parameters = Para.Parameters
+
+    #----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    #----------------------------------------------------------------------------------------------------------------------------------------------------------
+    # Halo Mass Function from HMFCalc to cross check our HMF from 21cmFast
+    mf = MassFunction(z = Parameters['z'], Mmin = Parameters['M_min'], Mmax = 12.0)
+
+    #----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    #-----------------------------------------------------------------------------
+    #Setting up initial conditions
+
+    initial_conditions = p21c.initial_conditions(
+        user_params = {"DIM": Parameters['DIM'] , "HII_DIM": Parameters['HII_DIM'], "BOX_LEN": Parameters['BOX_LEN']},
+        cosmo_params = p21c.CosmoParams(SIGMA_8=0.8, OMm = 0.3, OMb = 0.045),
+        random_seed=54321
+        )
+        
+        
+    plotting.coeval_sliceplot(initial_conditions, "hires_density");
+
+    #-----------------------------------------------------------------------------
+        
+    #-----------------------------------------------------------------------------
+    #Setting up the ionized box at the given redshift and initial conditions
+
+    perturbed_field = p21c.perturb_field(
+        redshift = Parameters['z'],
+        init_boxes = initial_conditions
+        )
+
+    #-----------------------------------------------------------------------------
+    
     #-----------------------------------------------------------------------------
     #Calibrating the box to get the required xH
     print("Calibrating HII Eff to get xH = ",Parameters['target_xh'])
     
-    f_esc = optimize.brenth(Calibrate, 1, -6)  # Calibrates the value of f_esc for given target average neutral fraction
+    f_esc = optimize.brenth(Calibrate, 1, -6, xtol= 1e-4, args=(perturbed_field,Parameters))  # Calibrates the value of f_esc for given target average neutral fraction
 
     #-----------------------------------------------------------------------------
-
+    
     #-----------------------------------------------------------------------------
     # Locating halos
     print("working on Halo List")
@@ -285,7 +286,6 @@ def Generate_ion_boxes(newpath):
 
 
 if __name__ == '__main__':
-    Generate_ion_boxes(newpath)
-
-
+    rank = 1
+    Generate_ion_boxes(newpath,rank)
 
