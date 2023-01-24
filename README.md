@@ -12,6 +12,6 @@ Then run "Running_models_non_parallel_git.py"
 4. tabulate ; pip install tabulate
 
 # Changing the parameters
-To change the parameters you want to vary or to change the range of the parameters, open and edit "Parameters_file.py". This file contains the general list of the parametrs.
-To change the parameters and the ranges only for the corner models, edit the "Param_Ranges" dictionary in "Running_models_non_parallel_git.py". 
-To change the parameters for face models, edit "variables_list" in "Running_models_non_parallel_git.py".
+A. To change the parameters you want to vary or to change the range of the parameters, open and edit "Parameters_file.py". This file contains the general list of the parametrs.
+B. To change the parameters and the ranges only for the corner models, edit the "Param_Ranges" dictionary in "Running_models_non_parallel_git.py". 
+C. To change the parameters for face models, edit "variables_list" in "Running_models_non_parallel_git.py".
