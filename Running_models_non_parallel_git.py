@@ -143,7 +143,7 @@ face_models_processing_time = FM.get_face_models(variables_list, variables_range
 # Running middle model
 # Middle model is just the model with default parameters, it has rank = -1 which is the default value
 
-middle_model_processing_time = MM.get_face_models()
+middle_model_processing_time = MM.get_middle_model()
 
 # logging_file.write(f"It took {middle_model_processing_time} to calculate the middle models")
 #-----------------------------------------------------------------------------
