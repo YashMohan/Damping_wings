@@ -144,6 +144,165 @@ def Plot_wings(base,order,mass_halos,num_halos,rank = -1):
     plt.savefig(f"{plotpath}/1-sigma_tq_{Parameters['tq']}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.png", bbox_inches='tight', dpi=1000)
     plt.show()
     plt.close()
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+def Comprehensive_plots(d,D):
+    '''
+    This code generates the comprehensive plot, which compares different models by comparing their damping wing signals and 1-sigma scatter, for face models
+
+    Parameters
+    ----------
+    d : Integer
+        Length of variables list for face models
+    D : Integer
+        Length of the total parameters list
+
+    Returns
+    -------
+    None.
+
+    '''
+    #---------------------------------------------------------------------------------------------------------------------
+    # Comprehensive Plots for face models   
     
+    #plt.figure(dpi=5000)
+    fig = plt.figure()
+    # set height ratios for subplots
+    gs = gridspec.GridSpec(2, 1, height_ratios=[1, 1]) 
+    ax0 = plt.subplot(gs[0])
+    ax1 = plt.subplot(gs[1],sharex = ax0)
+
+    plt.minorticks_on() 
+    #ax.tick_params('both', which='major', length=16, width=1, direction='in', top=True, right=True)
+    #ax.tick_params('both', which='minor', length=8, width=1, direction='in', top=True, right=True)
+    #plt.title(f"Averaged damping wings for various halo masses (xh = {Parameters['target_xh']})")
+
+    for I in range(0,2*d):
+        #-----------------------------------------------------------------------------   
+        rank = 2**D + 2*I + 1  # Selecting only tq = 10^6 yrs models, +1 for tq = 10^6 yrs, 0 for tq = 0 models
+        
+        print(rank)
+        Para = importlib.import_module(f'Parameters_temp_{rank}')
+        Parameters = Para.Parameters
+        #-----------------------------------------------------------------------------
+
+        base = []
+        order = []
+        num_halos = []
+        mass_halos = []
+        file = open(f"{newpath}/Halos_for_skewers_tq_{Parameters['tq']}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.txt",'r')
+        for l in file.readlines():
+            b, o, n, m = l.strip().split(" ")
+            base.append(int(b))
+            order.append(int(o))
+            num_halos.append(n)
+            mass_halos.append(m)
+            
+        base = np.array(base)
+        order = np.array(order)
+        num_halos = np.array(num_halos)
+        mass_halos = np.array(mass_halos)
+
+        #Plottting the damping wings
+
+        lamda = pickle.load(open(f"{newpath}/lamda_z_{Parameters['z']}_tq_{Parameters['tq']}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "rb" ))
+
+        e_tau_avg = np.zeros((len(base),n_pixels))
+        low_quantile = np.zeros((len(base),n_pixels))
+        mid_quantile = np.zeros((len(base),n_pixels))
+        up_quantile = np.zeros((len(base),n_pixels))
+        diff_quantile = np.zeros((len(base),n_pixels))
+
+
+        for i in range(0,len(base)):
+            e_tau_avg[i] = (pickle.load(open(f"{newpath}/e_tau_avg_Mass_{base[i]}_{order[i]}_tq_{Parameters['tq']}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "rb" )))
+            low_quantile[i] = (pickle.load(open(f"{newpath}/lower_quantile_{base[i]}_{order[i]}_tq_{Parameters['tq']}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "rb" )))
+            mid_quantile[i] = (pickle.load(open(f"{newpath}/middle_quantile_{base[i]}_{order[i]}_tq_{Parameters['tq']}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "rb" )))
+            up_quantile[i] = (pickle.load(open(f"{newpath}/upper_quantile_{base[i]}_{order[i]}_tq_{Parameters['tq']}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "rb" )))
+            diff_quantile[i] = (pickle.load(open(f"{newpath}/diff_quantile_{base[i]}_{order[i]}_tq_{Parameters['tq']}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "rb" )))
+         
+        for k in range(len(base)-1,0,-1):
+            if (float(num_halos[k])>=10.0):
+                break
+
+        ax0.plot(lamda,mid_quantile[0], label = f"(xh: {Parameters['target_xh']}, alpha-esc: {Parameters['alpha_esc']}, alpha-star: {Parameters['alpha_star']}, f_star: {Parameters['f_star']}, mass = {mass_halos[0]})")
+        ax1.plot(lamda,diff_quantile[0], label = f"(xh: {Parameters['target_xh']}, alpha-esc: {Parameters['alpha_esc']}, alpha-star: {Parameters['alpha_star']}, f_star: {Parameters['f_star']}, mass = {mass_halos[0]})")
+        ax0.fill_between(lamda, up_quantile[0], low_quantile[0], alpha=0.25)
+
+        # plt.plot(lamda,mid_quantile[k], label = f"(xh: {Parameters['target_xh']}, alpha-esc: {Parameters['alpha_esc']}, alpha-star: {Parameters['alpha_star']}, f_star: {Parameters['f_star']}, mass = {mass_halos[k]})")
+        # plt.fill_between(lamda, up_quantile[k], low_quantile[k], alpha=0.25)
+
+    # Plotting the same for the middle model
+    Parameters = Params.Parameters
     #-----------------------------------------------------------------------------
+
+    #-----------------------------------------------------------------------------
+
+    base = []
+    order = []
+    num_halos = []
+    mass_halos = []
+    file = open(f"{newpath}/Halos_for_skewers_tq_{Parameters['tq']}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.txt",'r')
+    for l in file.readlines():
+        b, o, n, m = l.strip().split(" ")
+        base.append(int(b))
+        order.append(int(o))
+        num_halos.append(n)
+        mass_halos.append(m)
+        
+    base = np.array(base)
+    order = np.array(order)
+    num_halos = np.array(num_halos)
+    mass_halos = np.array(mass_halos)
+
+    #Plottting the damping wings
+
+    lamda = pickle.load(open(f"{newpath}/lamda_z_{Parameters['z']}_tq_{Parameters['tq']}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "rb" ))
+
+    e_tau_avg = np.zeros((len(base),n_pixels))
+    low_quantile = np.zeros((len(base),n_pixels))
+    mid_quantile = np.zeros((len(base),n_pixels))
+    up_quantile = np.zeros((len(base),n_pixels))
+    diff_quantile = np.zeros((len(base),n_pixels))
+
+
+    for i in range(0,len(base)):
+        e_tau_avg[i] = (pickle.load(open(f"{newpath}/e_tau_avg_Mass_{base[i]}_{order[i]}_tq_{Parameters['tq']}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "rb" )))
+        low_quantile[i] = (pickle.load(open(f"{newpath}/lower_quantile_{base[i]}_{order[i]}_tq_{Parameters['tq']}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "rb" )))
+        mid_quantile[i] = (pickle.load(open(f"{newpath}/middle_quantile_{base[i]}_{order[i]}_tq_{Parameters['tq']}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "rb" )))
+        up_quantile[i] = (pickle.load(open(f"{newpath}/upper_quantile_{base[i]}_{order[i]}_tq_{Parameters['tq']}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "rb" )))
+        diff_quantile[i] = (pickle.load(open(f"{newpath}/diff_quantile_{base[i]}_{order[i]}_tq_{Parameters['tq']}_T_vir_{Parameters['T_vir']}_M_Turn_{Parameters['M_min']}_target_xh_{Parameters['target_xh']}_alpha_esc_{Parameters['alpha_esc']}_alpha_star_{Parameters['alpha_star']}_f_star_{Parameters['f_star']}_z_{Parameters['z']}_calibrated_no_halofield.p", "rb" )))
+     
+    for k in range(len(base)-1,0,-1):
+        if (float(num_halos[k])>=10.0):
+            #print(k)
+            break
+
+    ax0.plot(lamda,mid_quantile[0], color = 'black', linestyle='dashed', linewidth=1.5, label = f"(xh: {Parameters['target_xh']}, alpha-esc: {Parameters['alpha_esc']}, alpha-star: {Parameters['alpha_star']}, f_star: {Parameters['f_star']}, mass = {mass_halos[0]})")
+    ax0.fill_between(lamda, up_quantile[0], low_quantile[0], alpha=0.25)
+    ax1.plot(lamda,diff_quantile[0], color = 'black', linestyle='dashed', linewidth=1.5, label = f"(xh: {Parameters['target_xh']}, alpha-esc: {Parameters['alpha_esc']}, alpha-star: {Parameters['alpha_star']}, f_star: {Parameters['f_star']}, mass = {mass_halos[0]})")
+    # plt.plot(lamda,mid_quantile[k], color = 'black', linestyle='dashed', linewidth=1.5, label = f"(xh: {Parameters['target_xh']}, alpha-esc: {Parameters['alpha_esc']}, alpha-star: {Parameters['alpha_star']}, f_star: {Parameters['f_star']}, mass = {mass_halos[k]})")
+    # plt.fill_between(lamda, up_quantile[k], low_quantile[k], alpha=0.25)
+
+    ax0.axvline(x = 1215.67, ymin=0.0, ymax=1.0, color = 'black', linestyle='dashed', label = r"$Ly_{\alpha}$")
+    ax0.set_ylabel(r'$e^{-\tau{D}}$',  fontsize=10)
+    ax1.set_ylabel(r'$1-\sigma$',  fontsize=10)
+    ax1.set_xlabel(r"$\lambda_{\alpha}(1+z)~~Å$",  fontsize=10)
+    ax0.set_xlim(1180,1260)
+    ax1.set_xlim(1180,1260)
+    plt.setp(ax0.get_xticklabels(), visible=False)
+    #plt.tight_layout()
+    
+    pos = ax0.get_position()
+    pos2 = ax1.get_position()
+    ax0.set_position([pos.x0, pos.y0, pos.width * 0.8, pos.height])
+    ax1.set_position([pos2.x0, pos2.y0, pos2.width * 0.8, pos2.height])
+    ax0.legend(loc='center right', bbox_to_anchor=(2.5, -0.13))
+    #legend = plt.legend(loc='center right', fontsize='small')
+    plt.subplots_adjust(hspace=.0)
+    plt.savefig(f"{plotpath}/Comprehensive_quantile_plots_tq_{Parameters['tq']}_z_{Parameters['z']}_low_mass_halos_{mass_halos[0]}_calibrated_no_halofield.png",  bbox_inches='tight', dpi=1000)
+    plt.show()
+    plt.close()
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
