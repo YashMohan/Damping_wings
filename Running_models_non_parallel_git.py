@@ -31,6 +31,7 @@ import Parameters_file as Params
 import Corner_models as CM
 import Face_models as FM
 import Middle_model as MM
+import Plotting_wings as PW
 #-----------------------------------------------------------------------------
 
 logging_file = open(newpath+"/Time_logging.txt", "w")
@@ -148,7 +149,7 @@ middle_model_processing_time = MM.get_face_models()
 #-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
-FM.Comprehensive_plots(d, D)
+PW.Comprehensive_plots(d, D)
         
 
 
