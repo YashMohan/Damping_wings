@@ -65,7 +65,8 @@ initial_conditions = p21c.initial_conditions(
 
 #----------------------------------------------------------------------------------------------------------------------------------------------------------
 # Clearing not required cache
-cache_tools.clear_cache(direc = cache_file)
+cache_tools.clear_cache(kind=(initial_conditions) ,seed=(54321))
+# cache_tools.clear_cache(direc = cache_file, kind=(initial_conditions) ,seed=(54321))
 
 #----------------------------------------------------------------------------------------------------------------------------------------------------------
 
