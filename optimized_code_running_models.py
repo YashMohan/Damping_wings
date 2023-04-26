@@ -50,16 +50,6 @@ def calculate_T_vir (z,xh,M):
 
 #-----------------------------------------------------------------------------
 class Models():
-    '''
-    DD
-    Parameters_names
-    Parameters_values
-    Parameters_lens
-    rank
-    rank_list
-    P_va, n_va
-    P_vo, n_vo
-    '''
     
     def __init__(self, Param_Ranges):
     
@@ -70,27 +60,32 @@ class Models():
         self.Parameters_values = [np.insert(self.Parameters_values[index],0,Params.Parameters[f'{keys}']) for index,keys in enumerate(Params.Parameters)]    # Adding the fiducial values at front
         self.Parameters_values = [list(OrderedSet(i)) for i in self.Parameters_values]     # Making sure that the fiducial value appeaers only at front, hence ignoring if it repeats somewhere
         self.Parameters_lens = [len(i) for i in self.Parameters_values]   # length of each parameter, i.e., number of points for each parameter
-        self.Varying_order = [np.prod(self.Parameters_lens[self.DD-1:i:-1]) for i in range(0,self.DD-1)] + [0]  # The point after which each parameter start to vary for the first time
+        self.Varying_order = [np.prod(self.Parameters_lens[self.DD-1:i:-1]) for i in range(0,self.DD-1)] + [1]  # The point after which each parameter start to vary for the first time, 1 is added since the last element will vary immedietly after the 0th (fiducial) model
         self.rank_list = list(itertools.product(*self.Parameters_values))   # List of all possible combinations of parameter values
     
-    def rank_calculation(self, Specific_values = None, P_VA = None, P_VO = None):
+    def rank_calculation(self, Specific_values = None, P_VA = None, P_VO = None, Avoid_mid = False):
         '''
-        add some tests
         
+
         Parameters
         ----------
-        Specific_parameters : TYPE, optional
-        DESCRIPTION. The default is None.
-        P_VA : TYPE, optional
-        DESCRIPTION. The default is None.
-        P_VO : TYPE, optional
-        DESCRIPTION. The default is None.
-        
+        Specific_values : dictonary, optional
+            Runs the model for a/some specific combination of values of some or all parameters. The default is None.
+        P_VA : list, optional
+            List of parameters which will vary for all the models (general form of corner models). The default is None.
+        P_VO : list, optional
+            List of parameters which will vary only once (for all values) throughout the run of all models (general form of face models). The default is None.
+        Avoid_mid : bool, optional
+            This flag will check if the user wants to vary the models over fiducial parameter values. 
+            For example, we are varying our models for z = (7,6,8) where z = 7 is the fiducial value, if it is "True" then the model will run for all values of z, i.e., 7, 6 and 8,
+            if it is "False" then the code will run only for z = 6 and 8, and avoid fiducial value, i.e., z = 7.
+            The default is False.
+
         Returns
         -------
-        TYPE
-        DESCRIPTION.
-        
+        TYPE: list
+            Returns the list of ranks for the given set of arguments
+
         '''
         self.P_va = None   # This is to make sure, even if the same object calls rank_calculation multiple times, each instances do not overlap
         self.P_vo = None
@@ -115,11 +110,15 @@ class Models():
             P_VA = set(P_VA)
             self.P_va = [self.Parameters_names.index(j) for j in P_VA]  # If P_VA is provided, then storing the position of the provided parameters in P_va
             self.n_va = [np.linspace(0,self.Parameters_lens[i]-1,self.Parameters_lens[i], dtype=int) for i in self.P_va] # Storing the length or number of points for P_VA parameter list in n_va
-        
+            if Avoid_mid:
+                self.n_va = [np.linspace(1,self.Parameters_lens[i]-1,self.Parameters_lens[i]-1, dtype=int) for i in self.P_va] # Storing the length or number of points for P_VA parameter list in n_va
+                
         if P_VO is not None:
             self.P_vo = [self.Parameters_names.index(j) for j in P_VO]  # If P_VO is provided, then storing the position of the provided parameters in P_vo
             self.n_vo = [np.linspace(0,self.Parameters_lens[i]-1,self.Parameters_lens[i], dtype=int) for i in self.P_vo]  # Storing the length or number of points for P_VO parameter list in n_vo
-        
+            if Avoid_mid:
+                self.n_vo = [np.linspace(1,self.Parameters_lens[i]-1,self.Parameters_lens[i]-1, dtype=int) for i in self.P_vo] # Storing the length or number of points for P_VA parameter list in n_va
+              
         if Len(self.P_vo) == 1 and self.P_va is not None:  # If there's only one parameter in P_vo, then it can be clubbed with P_va
             self.P_va.extend(self.P_vo)
             self.n_va.extend(self.n_vo)
@@ -207,8 +206,8 @@ class Models():
         
         Parameters
         ----------
-        rank : TYPE, optional
-        DESCRIPTION. The default is None.
+        rank : list, optional
+        List of ranks over which we will calculate our models. The default is None, which corresponds to thee fiducial model.
         
         Returns
         -------
@@ -280,5 +279,4 @@ class Models():
                 
             for p in process:
                 p.join()
-                
                 
