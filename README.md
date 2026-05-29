@@ -19,6 +19,8 @@ This pipeline:
 3. **Constructs observables** — median damping wing profiles and sightline-to-sightline scatter — from ensembles of simulated quasar spectra
 4. **Derives parameter constraints** using Fisher Information Matrix analysis, quantifying how well a given survey can constrain reionization parameters
 
+![Ionized box with 50% neutral hydrogen fraction](xh_50.png)
+
 ### Key Result
 
 A sample of **64 quasars at redshift z = 7** can constrain:
