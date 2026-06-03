@@ -1,0 +1,29 @@
+cat > .gitignore << 'EOF'
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# 21cmFAST cache and outputs
+*.h5
+*.hdf5
+*.npy
+*.npz
+cache/
+
+# Conda/pip environments
+.env
+.venv
+env/
+
+# Large output files
+output/
+*.log
+
+# OS
+.DS_Store
+*.swp
+EOF
