@@ -13,27 +13,9 @@ import py21cmfast as p21c
 import numpy as np
 from .config.constants import H0, Omega_m, Omega_lambda, Omega_k, G, Conversion_kg_Solar_mass, Conversion_m_to_Mpc, L_Box, DIM  
 from .config.parameters_file import Parameters    
+from .utils import H
 
 #-----------------------------------------------------------------------------
-#Hubble Rate
-def H(z: float) -> float:
-    '''
-    This function calculates the value of Hubble constant for the given constants of universe at a given redshift 'z'
-
-    Parameters
-    ----------
-    z : float 
-        Redshift at which the Hubble constant neeeds to be evaluated
-
-    Returns
-    -------
-    H(z) : float
-        Returns the Hubble–Lemaître parameter at the given redshift
-
-    '''
-    return H0*(Omega_m*(1+z)**3 + Omega_lambda + Omega_k*((1+z)**2))**(1/2)    
-#-----------------------------------------------------------------------------
-
 def Get_me_M_min(initial_conditions: p21c.InitialConditions) -> float:
     '''
     This function calculates the average mass of the pixel of the box for a given set of box parameters

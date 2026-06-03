@@ -5,7 +5,6 @@ Created on Fri Aug 19 14:54:03 2022
 
 @author: sharma
 """
-from typing import TypedDict
 import numpy as np
 from numpy.typing import NDArray
 import matplotlib.pyplot as plt
@@ -16,21 +15,14 @@ import h5py
 from numba import jit
 import statistics
 import py21cmfast as p21c
-from .config.constants import n_pixels, dl, N_sightlines, newpath, H0, Omega_b, Omega_k, Omega_lambda, Omega_m, Nion, Conversion_amu_Mpc, L_Box, HII_DIM, DIM, txt_files, R_alpha, c
-import .config.parameters_file as params
+from .config.constants import SimParams, newpath, H0, Omega_b, Omega_k, Omega_lambda, Omega_m, Nion, Conversion_amu_Mpc, L_Box, HII_DIM, DIM, txt_files, R_alpha, c, n_pixels, dl, N_sightlines
+from .config import parameters_file as params
+from .utils import H
 #-----------------------------------------------------------------------------
 
 #---------------------------------------------------------------------------
 if not os.path.exists(newpath):
     sys.exit()
-#---------------------------------------------------------------------------
-
-class SimParams(TypedDict):
-    x_hi: float
-    m_min: float
-    t_q: float
-    m_qso: float
-    redshift: float
 #-----------------------------------------------------------------------------
 
 @jit(nopython=True)
@@ -53,25 +45,6 @@ def I(x: float) -> float:
     return ((x**(1/2))/(1-x) + 2*np.log(np.abs((1-x**(1/2))/(1+x**(1/2)))))
  
 #-----------------------------------------------------------------------------
-
-def H(z: float) -> float:
-    '''
-    This function calculates the value of Hubble constant for the given constants of universe at a given redshift 'z'
-
-    Parameters
-    ----------
-    z : float 
-        Redshift at which the Hubble constant neeeds to be evaluated
-
-    Returns
-    -------
-    H(z) : float
-        Returns the Hubble–Lemaître parameter at the given redshift
-
-    '''
-    return H0*(Omega_m*(1+z)**3 + Omega_lambda + Omega_k*((1+z)**2))**(1/2)    
-#-----------------------------------------------------------------------------
-
 @jit(nopython=True)
 def optical_depth(den: NDArray[np.float64], xh: NDArray[np.float64], z: NDArray[np.float64], zs: float) -> NDArray[np.float64]:
     '''
@@ -121,7 +94,7 @@ def optical_depth(den: NDArray[np.float64], xh: NDArray[np.float64], z: NDArray[
 
 #-----------------------------------------------------------------------------
 
-def damping_wings(base: float, order: float, Parameters: SimParams, rank: int = 0) -> None:
+def damping_wings(base: int, order: int, Parameters: SimParams, rank: int = 0) -> None:
     '''
     This code calculates the damping wing optical depth across a given sightline
 
@@ -140,7 +113,7 @@ def damping_wings(base: float, order: float, Parameters: SimParams, rank: int = 
 
     '''
     
-    len_z: NDArray[np.float64]  # Pixel length of redshift array
+    len_z: int # Pixel length of redshift array
     z: NDArray[np.float64]  # Redshift along the skewer sightline 
     lamda: NDArray[np.float64]  # Wavelength range of with respect to the observer
     tau_gp: NDArray[np.float64] # Gunn-Peterson optical depth
@@ -187,7 +160,6 @@ def damping_wings(base: float, order: float, Parameters: SimParams, rank: int = 
         
         e_tau_z[j] = np.exp(-tau_z[j])
         lamda = (1+z)*1215.67/(1+Parameters['z'])   # Observed wavelength
-        # plt.plot(lamda,e_tau_z[j])
         
     e_tau_avg = np.exp(-tau_avg)
     
@@ -227,10 +199,7 @@ def damping_wings(base: float, order: float, Parameters: SimParams, rank: int = 
         
 if __name__ == '__main__':
     
-    Parameters = params.Parameters
-    
-    # damping_wings(4,11,Parameters, rank=0)
-    
+    Parameters = params.Parameters    
     r = [1,2]
     for rank in r:
         damping_wings(4, 11, Parameters, rank)

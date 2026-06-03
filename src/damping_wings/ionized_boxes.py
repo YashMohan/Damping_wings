@@ -10,7 +10,7 @@ Description: This code generates the ionised boxes calibrated at certain neutral
 
 #-----------------------------------------------------------------------------
 import matplotlib.pyplot as plt
-from typing import TypedDict
+import os
 import sys
 import py21cmfast as p21c
 from py21cmfast import plotting
@@ -20,27 +20,14 @@ import pickle
 from scipy import optimize
 import time
 time_start = time.perf_counter()
-p21c.config['EXTRA_HALOBOX_FIELDS'] = True
 
-from .config.constants import N_sightlines, newpath, L_Box, HII_DIM, DIM, txt_files, seed
-from .config.parameters_file import Parameters as params 
-#-----------------------------------------------------------------------------
-class SimParams(TypedDict):
-    x_hi: float
-    m_min: float
-    t_q: float
-    m_qso: float
-    redshift: float
-
-#-----------------------------------------------------------------------------
-    
+from .config.constants import SimParams, N_sightlines, newpath, plotpath, L_Box, HII_DIM, DIM, txt_files, seed
+from .config.parameters_file import Parameters as params    
 
 #----------------------------------------------------------------------------------------------------------------------------------------------------------
-
 def calibrate(HII_f_esc: float, Parameters: SimParams, initial_conditions: p21c.InitialConditions) -> float:
     
     '''
-    
     Description
     ----------
     Calibrates the value of HII fraction or f_esc to get the desired initial average neutral Hydrogen fraction of the box
@@ -53,7 +40,7 @@ def calibrate(HII_f_esc: float, Parameters: SimParams, initial_conditions: p21c.
      
     perturbed_field : 
         
-    Parameterse : Dictionary 
+    Parameters : Dictionary 
         Provides the list of parameters to run the ionized box
 
     initial_conditions : p21c.InitialConditions
@@ -62,7 +49,7 @@ def calibrate(HII_f_esc: float, Parameters: SimParams, initial_conditions: p21c.
     Returns
     -------
     float
-        Returns the difference vetween the mean neutral hydrogen fraction from the box and the target neutral fraction
+        Returns the difference between the mean neutral hydrogen fraction from the box and the target neutral fraction
 
     '''
 
@@ -71,7 +58,12 @@ def calibrate(HII_f_esc: float, Parameters: SimParams, initial_conditions: p21c.
     perturbed_field: p21c.PerturbedField # Updating the density fields perturbed to the desired redshift
     ionized_field: p21c.IonizedBox # Calculating the ionized fields for calibration
 
-    new_inputs = initial_conditions.inputs.evolve_input_structs(ION_Tvir_MIN = Parameters['T_vir'], M_TURN = Parameters['m_min'], F_ESC10 = HII_f_esc, F_STAR10 = Parameters['f_star'], ALPHA_ESC = Parameters['alpha_esc'], ALPHA_STAR = Parameters['alpha_star'])
+    new_inputs = initial_conditions.inputs.evolve_input_structs(ION_Tvir_MIN = Parameters['T_vir'],
+                                                                M_TURN = Parameters['m_min'],
+                                                                F_ESC10 = HII_f_esc,
+                                                                F_STAR10 = Parameters['f_star'],
+                                                                ALPHA_ESC = Parameters['alpha_esc'],
+                                                                ALPHA_STAR = Parameters['alpha_star'])
     new_initial_conditions = p21c.compute_initial_conditions(inputs=new_inputs)
 
     perturbed_field = p21c.perturb_field(
@@ -91,8 +83,7 @@ def calibrate(HII_f_esc: float, Parameters: SimParams, initial_conditions: p21c.
 
 def calibrate_pop2(pop2: float, f_esc: float, Parameters: SimParams, initial_conditions: p21c.InitialConditions) -> float:
     
-    '''
-    
+    ''' 
     Description
     ----------
     Calibrates the value of Pop2 ionising photons to get the desired initial average neutral Hydrogen fraction of the box
@@ -105,7 +96,7 @@ def calibrate_pop2(pop2: float, f_esc: float, Parameters: SimParams, initial_con
     f_esc = float
         Escape fraction of photons escaping from halo
         
-    Parameterse : Dictionary 
+    Parameters : Dictionary 
         Provides the list of parameters to run the ionized box
 
     initial_conditions : p21c.InitialConditions
@@ -121,8 +112,17 @@ def calibrate_pop2(pop2: float, f_esc: float, Parameters: SimParams, initial_con
     new_initial_conditions: p21c.InitialConditions  # Updating initial conditions for calibration
     perturbed_field: p21c.PerturbedField # Updating the density fields perturbed to the desired redshift
     ionized_field: p21c.IonizedBox # Calculating the ionized fields for calibration
+    
+    
+    new_inputs = initial_conditions.inputs.evolve_input_structs(ION_Tvir_MIN = Parameters['T_vir'],
+                                                                M_TURN = Parameters['m_min'],
+                                                                F_ESC10 = f_esc,
+                                                                F_STAR10 = Parameters['f_star'],
+                                                                ALPHA_ESC = Parameters['alpha_esc'],
+                                                                ALPHA_STAR = Parameters['alpha_star'],
+                                                                POP2_ION = pop2,
+                                                                )
 
-    new_inputs = initial_conditions.inputs.evolve_input_structs(POP2_ION = pop2, new_inputs = initial_conditions.inputs.evolve_input_structs(ION_Tvir_MIN = Parameters['T_vir'], M_TURN = Parameters['m_min'], F_ESC10 = f_esc, F_STAR10 = Parameters['f_star'], ALPHA_ESC = Parameters['alpha_esc'], ALPHA_STAR = Parameters['alpha_star']))
     new_initial_conditions = p21c.compute_initial_conditions(inputs=new_inputs)
 
     perturbed_field = p21c.perturb_field(
@@ -168,9 +168,15 @@ def generate_ion_boxes(initial_conditions: p21c.InitialConditions, cache:  p21c.
     None.
     
     '''
+    
+    if not os.path.exists(newpath):
+        raise RuntimeError(
+            f"Output directory '{newpath}' does not exist. "
+            "Call setup_output_dirs() before running the pipeline."
+        )
 
     mf : MassFunction   # Halo Mass Function(HMF) from HMFCalc to cross check our HMF from 21cmFast
-    f_esc_extreme: list[int]   # Extremes of escape fraction
+    f_esc_extreme: list[float]   # Extremes of escape fraction
     original_Pop2_ion: float    # 5000, default POP2 ION value from 21cmFAST
     f_esc: float    # Escape fraction
     calibrate_pop2_ion: float   # Calibrated POP2 ION value if calibrate_pop2 function is used
@@ -180,7 +186,8 @@ def generate_ion_boxes(initial_conditions: p21c.InitialConditions, cache:  p21c.
     ionized_field: p21c.IonizedBox  # Calculating the ionized fields for calibration
     Halo_field: p21c.HaloCatalog    # Halo Catalog 
     Updated_Halo_field: p21c.HaloBox    # Calculating the perturbed Halo properties
-
+    
+    p21c.config['EXTRA_HALOBOX_FIELDS'] = True
 
     print("\nGenerating ionized box for parameters rank: ", rank)    
 
@@ -228,7 +235,13 @@ def generate_ion_boxes(initial_conditions: p21c.InitialConditions, cache:  p21c.
     #-----------------------------------------------------------------------------
     # Locating halos
 
-    new_inputs = initial_conditions.inputs.evolve_input_structs(POP2_ION = calibrate_pop2_ion, ION_Tvir_MIN = Parameters['T_vir'], M_TURN = Parameters['m_min'], F_ESC10 = f_esc, F_STAR10 = Parameters['f_star'], ALPHA_ESC = Parameters['alpha_esc'], ALPHA_STAR = Parameters['alpha_star'])
+    new_inputs = initial_conditions.inputs.evolve_input_structs(POP2_ION = calibrate_pop2_ion,
+                                                                ION_Tvir_MIN = Parameters['T_vir'],
+                                                                M_TURN = Parameters['m_min'],
+                                                                F_ESC10 = f_esc,
+                                                                F_STAR10 = Parameters['f_star'],
+                                                                ALPHA_ESC = Parameters['alpha_esc'],
+                                                                ALPHA_STAR = Parameters['alpha_star'])
     new_initial_conditions = p21c.compute_initial_conditions(inputs=new_inputs)
 
     perturbed_field = p21c.perturb_field(
@@ -269,41 +282,6 @@ def generate_ion_boxes(initial_conditions: p21c.InitialConditions, cache:  p21c.
         )   
 
     #-----------------------------------------------------------------------------
-    
-    #-----------------------------------------------------------------------------
-    """
-    # Plotting the density field
-    print("Plotting the density field")
-    plotting.coeval_sliceplot(perturbed_field, "density");
-    plt.title("Density Field")
-    plt.savefig(f"{plotpath}/Density_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}.png")
-    
-    # Plotting the velocity field
-    print("Plotting the velocity field")
-    plotting.coeval_sliceplot(perturbed_field, "velocity");
-    plt.title("Velocity Field")
-    plt.savefig(f"{plotpath}/Velocity_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}.png")
-
-    # Comparing 21cmfast halo mass function with HMFCalc halo mass function
-    print("plotting the halo mass function")
-    plt.figure(figsize=(5, 6), dpi=150)
-    plt.title("Halo Mass function")
-    plt.plot(mf.m,mf.dndlnm)
-    plt.plot(Halo_field.mass_bins,Halo_field.dndlm)
-    plt.xscale('log')
-    plt.yscale('log')
-
-    plt.legend(['Hmf_calc','21cmFast'])
-    plt.xlabel(r"Mass, $[h^{-1}M_\odot]$")
-    plt.ylabel(r"$dn/dm$, $[h^{4}{\rm Mpc}^{-3}M_\odot^{-1}]$");
-    # plt.savefig(f"{newpath}/Halo_mass_function_rank_{rank}_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}.png")
-    plt.savefig(f"{plotpath}/Halo_mass_function_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.png")
-    plt.show()
-    plt.close()
-    #-----------------------------------------------------------------------------
-    
-    #-----------------------------------------------------------------------------
-    """
     #-----------------------------------------------------------------------------
     
     #-----------------------------------------------------------------------------
@@ -318,6 +296,7 @@ def generate_ion_boxes(initial_conditions: p21c.InitialConditions, cache:  p21c.
     plotting.coeval_sliceplot(ionized_field, "xH_box");
     plt.title("Ionized Box Slice")
     plt.savefig(f"{plotpath}/ionised_box_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}.png" )
+    plt.close()
 #----------------------------------------------------------------------------------------------------------------------------------------------------------
 
 if __name__ == '__main__':

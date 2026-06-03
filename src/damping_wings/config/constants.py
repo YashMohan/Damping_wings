@@ -1,10 +1,13 @@
 import datetime
 import os
+from typing import TypedDict
+from numpy.typing import NDArray
+import numpy as np
 
 today = str(datetime.date.today())
 #-----------------------------------------------------------------------------
 #For cluster
-newpath = r'/home/yash/Desktop/code_workspace/damping_wings/code/' 
+newpath = os.environ.get('DAMPING_WINGS_OUTPUT', os.path.join(os.getcwd(), 'output'))
 if not os.path.exists(newpath):
     os.mkdir(newpath)
 
@@ -19,23 +22,22 @@ if not os.path.exists(txt_files):
 cache_path = newpath+'/cache_files'
 if not os.path.exists(cache_path):
     os.mkdir(cache_path)
-# #-----------------------------------------------------------------------------    
-
-
-if not os.path.exists(newpath):
-    os.mkdir(newpath)
-
-# Plot path
-plotpath = newpath+'/plots'
-if not os.path.exists(plotpath):
-    os.mkdir(plotpath)
-    
-txt_files = newpath+'/txt_files'
-if not os.path.exists(txt_files):
-    os.mkdir(txt_files)
-
 #-----------------------------------------------------------------------------
+class SimParams(TypedDict):
+    z: float
+    M_min: float
+    target_xh: float
+    alpha_esc: float
+    alpha_star: float
+    f_star: float
+    tq: float
 
+class SimParamsRanges(TypedDict):
+    x_hi: NDArray[np.float64]
+    m_min: NDArray[np.float64]
+    t_q: NDArray[np.float64]
+    m_qso: NDArray[np.float64]
+    redshift: NDArray[np.float64]
 #-----------------------------------------------------------------------------
     
 #Constants

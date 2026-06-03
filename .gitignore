@@ -1,4 +1,3 @@
-cat > .gitignore << 'EOF'
 # Python
 __pycache__/
 *.py[cod]
@@ -26,4 +25,8 @@ output/
 # OS
 .DS_Store
 *.swp
-EOF
+
+output/
+*.h5
+*.hdf5
+*.p

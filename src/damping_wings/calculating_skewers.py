@@ -9,7 +9,6 @@ cleaned up versions of the code
 """
 
 #-----------------------------------------------------------------------------
-from typing import TypedDict
 import numpy as np
 from numpy.typing import NDArray
 from scipy.interpolate import RegularGridInterpolator
@@ -20,7 +19,8 @@ import sys
 from numba import jit
 import pickle
 import py21cmfast as p21c
-from .config.constants import n_pixels, dl, N_sightlines, newpath, H0, Omega_b, Omega_k, Omega_lambda, Omega_m, Nion, Conversion_amu_Mpc, L_Box, HII_DIM, DIM, txt_files, seed
+from .config.constants import SimParams, newpath, H0, G, Omega_b, Omega_k, Omega_lambda, Omega_m, c, Nion, Conversion_amu_Mpc, L_Box, HII_DIM, DIM, txt_files, n_pixels, dl, N_sightlines,  seed
+from .utils import H
 #-----------------------------------------------------------------------------
 # Seed
 np.random.seed(1000)
@@ -30,20 +30,11 @@ if not os.path.exists(newpath):
     print("Could not find the directory to load data")
     sys.exit()
     
-class SimParams(TypedDict):
-    x_hi: float
-    m_min: float
-    t_q: float
-    m_qso: float
-    redshift: float
-
 #-----------------------------------------------------------------------------
-
 dr = np.arange(0,n_pixels,dl)    # Distance travelled across any vector
 
 #-----------------------------------------------------------------------------
 #   Point on the surface of unit sphere
-
 # @jit(nopython=True)
 def sample_spherical(npoints: int, ndim: int= 3) -> NDArray[np.float64]:
     '''
@@ -67,38 +58,40 @@ def sample_spherical(npoints: int, ndim: int= 3) -> NDArray[np.float64]:
     vec = np.random.randn(ndim, npoints)
     vec = vec/np.linalg.norm(vec, axis = 0)
     return vec
-
-#-----------------------------------------------------------------------------
-#Hubble Rate
-# @jit(nopython=True)
-def H(z: float) -> float:
-    '''
-    This function calculates the value of Hubble constant for the given constants of universe at a given redshift 'z'
-
-    Parameters
-    ----------
-    z : float 
-        Redshift at which the Hubble constant neeeds to be evaluated
-
-    Returns
-    -------
-    H(z) : float
-        Returns the Hubble–Lemaître parameter at the given redshift
-
-    '''
-    return H0*(Omega_m*(1+z)**3 + Omega_lambda + Omega_k*((1+z)**2))**(1/2)    
+ 
 #-----------------------------------------------------------------------------
 # @jit(nopython=True)
-def generate_densities(tq: float, X: float, Y: float, Z: float, interp_ionised_box: NDArray[np.float64], interp_density_field: NDArray[np.float64], Parameters: SimParams) -> tuple[NDArray[np.float64], NDArray[np.float64], float]:
-    #-----------------------------------------------------------------------------
+def generate_densities(
+    tq: float,
+    X: NDArray[np.float64],
+    Y: NDArray[np.float64],
+    Z: NDArray[np.float64],
+    interp_ionised_box: RegularGridInterpolator,
+    interp_density_field: RegularGridInterpolator,
+    Parameters: SimParams
+    ) -> tuple[NDArray[np.float64], NDArray[np.float64], float]: 
+    """ This function generates the neutral fraction and matter densities along the length of the skewers. The quasar activity further carves an ionised bubble around
+    the halo, hence ionising the nearby region, which is represented by the sphere of radius Rion.
 
+    Args:
+        tq (float): quasar lifetime
+        X (NDArray[np.float64]): X coordinates of all the skewers
+        Y (NDArray[np.float64]): Y coordinates of all the skewers
+        Z (NDArray[np.float64]): Z coordinates of all the skewers
+        interp_ionised_box (RegularGridInterpolator): interpolated ionisation field
+        interp_density_field (RegularGridInterpolator): interpolated density field
+        Parameters (SimParams): Simulation parameters
+
+    Returns:
+        tuple[NDArray[np.float64], NDArray[np.float64], float]: neutral fraction and density along the length of skewer, and the size of the ionised bubble
+    """
     len_z: int = n_pixels
     z_red: NDArray[np.float64] = np.linspace(Parameters['z'],Parameters['z']-1.0,num=len_z)  # redshift space over which we will calculate our damping wings, it has the same size as the number of pixels 
     tol: float = 0.5    # Tolerence value for ionized sphere around a halo
     Rion: float = 0.0   # Radius of the sphere
     xh: NDArray[np.float64] = np.zeros(n_pixels) # Calculating the x_h along (X,Y,Z)
     den: NDArray[np.float64] = np.zeros(n_pixels) # Calculating the density along (X,Y,Z)
-    sum: NDArray[np.float64] = np.zeros(n_pixels)   # Calculating the total number of ionized gas within a Range of radius r carved by quasa
+    n_ion_sum: NDArray[np.float64] = np.zeros(n_pixels)   # Calculating the total number of ionized gas within a Range of radius r carved by quasar
     r: NDArray[np.float64] = np.zeros(n_pixels)    # Calculating the length of the skewer
     # sphere_index: int = 0
     xh: NDArray[np.float64]     # Interpolated values of xH along the skewer
@@ -126,10 +119,10 @@ def generate_densities(tq: float, X: float, Y: float, Z: float, interp_ionised_b
         
         rho_c = (3*H(z_red[k])**2)*Conversion_amu_Mpc/(8*np.pi*G)
         n_HI = Omega_b*rho_c*XH*(DEN+1)
-        sum[k+1] = sum[k] + n_HI*4*np.pi*r[k+1]*r[k+1]*del_r  
+        n_ion_sum[k+1] = n_ion_sum[k] + n_HI*4*np.pi*r[k+1]*r[k+1]*del_r  
 
     for l in range(n_pixels-1,0,-1):        
-        if(np.abs(sum[l] - Nion*tq)/(Nion*tq)<=tol):
+        if(np.abs(n_ion_sum[l] - Nion*tq)/(Nion*tq)<=tol):
             Rion = r[l]  # Radius of the ionized sphere
             break
     for j in range (0,n_pixels):
@@ -152,9 +145,9 @@ def calculate_skewers(base_halo_mass: int, o_halo_mass: int, new_halo_coords: ND
     Parameters
     ----------
     base_halo_mass : Integer
-        Base of the value of halo mass, it is provided to seperate halos and thier data files
+        Base of the value of halo mass, it is provided to separate halos and their data files
     o_halo_mass : Integer
-        Order of the value of halo mass, it is provided to seperate halos and thier data files
+        Order of the value of halo mass, it is provided to separate halos and their data files
     new_halo_coords : Array
         x,y,z coordinates of the halos in the given mass bin
     ionised_box : Array
@@ -172,14 +165,14 @@ def calculate_skewers(base_halo_mass: int, o_halo_mass: int, new_halo_coords: ND
     '''
     
     #----------------------------------------------------------------------------------------------------------------------------------------------------------
-    # Storing x,y and z coords of the halos seperately
+    # Storing x,y and z coords of the halos separately
     halo_x_coord: NDArray[np.float64]   # Coords of halos, x coordinate of all halos
     halo_y_coord: NDArray[np.float64]   # Coords of halos, y coordinate of all halos
     halo_z_coord: NDArray[np.float64]   # Coords of halos, z coordinate of all halos
     xx: NDArray[np.float64]   # Range of x coordinates, used for interpolation of ionized and density fields
     yy: NDArray[np.float64]   # Range of y coordinates, used for interpolation of ionized and density fields
     zz: NDArray[np.float64]   # Range of z coordinates, used for interpolation of ionized and density fields
-    interp_ionised_box: NDArray[np.float64]  # Interpolated inonisation field
+    interp_ionised_box: NDArray[np.float64]  # Interpolated ionisation field
     interp_density_field: NDArray[np.float64]   # Interpolated density field
     X: NDArray[np.float64]  # X coordinates of all the skewers
     Y: NDArray[np.float64]  # Y coordinates of all the skewers 
@@ -191,10 +184,10 @@ def calculate_skewers(base_halo_mass: int, o_halo_mass: int, new_halo_coords: ND
     yi: float # y coordinate of random direction vector
     zi: float # z coordinate of random direction vector
     mu: float # Mean of the lognormal distribution of quasar lifetime
-    sigma: float # Stadndard deviation of the lognormal distribution of quasar lifetime
+    sigma: float # Standard deviation of the lognormal distribution of quasar lifetime
     tq_final: float # Updated quasar lifetime with mu and sigma, to get the quasar lifetime drawn from a distribution, rather than just a single number. In secs
     xh: NDArray[np.float64] # Neutral fraction along the length of skewer
-    den: NDArray[np.float64] # Density along the lenght of skewer
+    den: NDArray[np.float64] # Density along the length of skewer
    
     halo_x_coord = new_halo_coords[:,0]*L_Box/HII_DIM
     halo_y_coord = new_halo_coords[:,1]*L_Box/HII_DIM
@@ -269,30 +262,4 @@ def calculate_skewers(base_halo_mass: int, o_halo_mass: int, new_halo_coords: ND
 
 if __name__ == '__main__':
     
-    rank = 0
-    
-    halo_mass = pickle.load(open(f"{newpath}/Halo_masses_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p","rb"))
-    halo_coords = pickle.load(open(f"{newpath}/Halo_coords_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p","rb"))
-    ionised_box = pickle.load( open(f"{newpath}/Ionized_box_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p", "rb" ))
-    density_field = pickle.load( open(f"{newpath}/Density_field_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p", "rb" ))
-    
-    base = []
-    order = []
-    num_halos = []
-    mass_halos = []
-    # file = open(f"{txt_files}/Halos_for_skewers_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.txt",'r')
-    file = open(f"{txt_files}/Halos_for_skewers_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}.txt",'r')
-    for l in file.readlines():
-        b, o, n, m = l.strip().split(" ")
-        base.append(int(b))
-        order.append(int(o))
-        num_halos.append(n)
-        mass_halos.append(m)
-        
-    base = np.array(base)
-    order = np.array(order)
-    num_halos = np.array(num_halos)
-    mass_halos = np.array(mass_halos)
-    
-    
-    
+    pass
