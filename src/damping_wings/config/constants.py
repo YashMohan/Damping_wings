@@ -6,22 +6,14 @@ import numpy as np
 
 today = str(datetime.date.today())
 #-----------------------------------------------------------------------------
-#For cluster
-newpath = os.environ.get('DAMPING_WINGS_OUTPUT', os.path.join(os.getcwd(), 'output'))
-if not os.path.exists(newpath):
-    os.mkdir(newpath)
+newpath: str = os.environ.get(
+    'DAMPING_WINGS_OUTPUT',
+    os.path.join(os.getcwd(), 'output')
+)
 
-plotpath = newpath+'/Plots'
-if not os.path.exists(plotpath):
-    os.mkdir(plotpath)
-
-txt_files = newpath+'/txt_files'
-if not os.path.exists(txt_files):
-    os.mkdir(txt_files)
-
-cache_path = newpath+'/cache_files'
-if not os.path.exists(cache_path):
-    os.mkdir(cache_path)
+plotpath: str  = os.path.join(newpath, 'plots')
+txt_files: str = os.path.join(newpath, 'txt_files')
+cache_path: str = os.path.join(newpath, 'cache_files')
 #-----------------------------------------------------------------------------
 class SimParams(TypedDict):
     z: float
