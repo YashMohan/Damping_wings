@@ -18,4 +18,6 @@ __all__ = [
     "H",
     "calculate_t_vir",
     "setup_output_dirs",
+    "Get_me_M_min",
+    "config",
 ]

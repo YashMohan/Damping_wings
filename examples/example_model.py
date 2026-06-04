@@ -4,36 +4,34 @@ Created on Mon Mar 20 15:12:17 2023
 @author: sharma
 """
 import numpy as np
-from numpy.typing import NDArray
 import sys
 from multiprocessing import Process
 from tabulate import tabulate
 import time
-import matplotlib.pyplot as plt
 import py21cmfast as p21c
 
-#-----------------------------------------------------------------------------
-# Models
-from damping_wings.config.constants import L_Box, HII_DIM, DIM, seed
-from damping_wings.config import parameters_file as params
-from damping_wings.m_pixels import Get_me_M_min
+from damping_wings import Models, setup_output_dirs, Get_me_M_min
+from damping_wings.config import Parameters, constants
 #---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 if __name__ == '__main__':
+    # Optional — override default output path before setup
+    # constants.newpath = "/your/custom/path"
     
-    cache_obj = p21c.OutputCache(cache_path)
+    setup_output_dirs() 
+    cache_obj = p21c.OutputCache(constants.cache_path)
 
     #-----------------------------------------------------------------------------
     # Setting up initial conditions
     print('\nSetting up initial conditions of the box')
 
     new_inputs = p21c.InputParameters(
-        simulation_options = {"DIM": DIM , "HII_DIM": HII_DIM, "BOX_LEN": L_Box},
+        simulation_options = {"DIM": constants.DIM , "HII_DIM": constants.HII_DIM, "BOX_LEN": constants.L_Box},
         matter_options = {"USE_FFTW_WISDOM": True, "PERTURB_ALGORITHM": "2LPT", "SOURCE_MODEL": "E-INTEGRAL"},
         # matter_options = {"PERTURB_ALGORITHM": "2LPT"},
         astro_options= {"M_MIN_in_Mass": True, "USE_EXP_FILTER": False, "USE_UPPER_STELLAR_TURNOVER": False},
         cosmo_params = p21c.CosmoParams(SIGMA_8=0.8, OMm = 0.3, OMb = 0.045),
-        random_seed=seed
+        random_seed=constants.seed
         )
 
     initial_conditions = p21c.compute_initial_conditions(
@@ -43,7 +41,7 @@ if __name__ == '__main__':
     #----------------------------------------------------------------------------------------------------------------------------------------------------------
 
     start_time = time.perf_counter()
-    m_p = mp.Get_me_M_min(initial_conditions)        # Average pixel mass; run once
+    m_p = Get_me_M_min(initial_conditions)        # Average pixel mass; run once
     time_elapsed = time.perf_counter() - start_time
 
     #-----------------------------------------------------------------------------
@@ -60,7 +58,7 @@ if __name__ == '__main__':
         'alpha_esc_list': np.linspace(-2,0,nn),    # alpha escape
         'alpha_star_list': np.linspace(0,1,nn),    # alpha star
         'f_star_list': np.linspace(-2,-0.25,nn),   # f star
-        'tq_list': np.linspace(0,params.Parameters['tq']*30,nn)   # Quasar lifetime
+        'tq_list': np.linspace(0,Parameters['tq']*30,nn)   # Quasar lifetime
         }
 
     model = Models(param_ranges)
@@ -72,7 +70,7 @@ if __name__ == '__main__':
     process = []
     print("\nRunning Models")
     for i in r:
-        p = Process(target= model.modelling, args=(initial_conditions,cache_obj[i]))
+        p = Process(target= model.modelling, args=(initial_conditions,cache_obj,[i]))
         p.start()
         process.append(p)
         
