@@ -1,10 +1,12 @@
-# Damping Wings — Ly-α Reionization Analysis Pipeline
+# Damping Wings — Parametric Simulation & Fisher Matrix Inference Pipeline
 
-[![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.9%2B-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Paper](https://img.shields.io/badge/Paper-ApJ%202025-orange)](https://doi.org/REPLACE_WITH_DOI)
 
-A Python pipeline for simulating Lyman-alpha damping wing profiles and constraining reionization-epoch parameters using Fisher Information Matrix analysis. Developed as part of research published in The Astrophysical Journal (2025).
+A general OOP-based Python pipeline for batch parametric semi-numerical simulation and Fisher Information Matrix-based parameter inference. Developed as part of research published in The Astrophysical Journal (2025).
+
+While the reference implementation studies Lyman-alpha damping wing profiles during the Epoch of Reionization, the pipeline is designed to be **modular and observable-agnostic** — the simulation backend and observable class can be replaced for any parametric physical system.
 
 ---
 
@@ -37,35 +39,41 @@ This constraining power is **comparable to predictions for current 21 cm radio e
 
 If you use this code, please cite:
 
-- Y. M. Sharma et al., *"Behavior of the Ly-α Damping Wings as a Function of Reionization Topology"*, The Astrophysical Journal, 2025. [DOI: REPLACE]
-- Y. M. Sharma et al., *"Constraining Ly-α Damping Wings Using Fisher Matrix"*, The Astrophysical Journal, 2025. [DOI: REPLACE]
+- Y. M. Sharma et al., *"Behavior of the Ly-α Damping Wings as a Function of Reionization Topology"*, The Astrophysical Journal, 2025.
+- Y. M. Sharma et al., *"Constraining Ly-α Damping Wings Using Fisher Matrix"*, The Astrophysical Journal, 2025.
 
 ---
 
 ## Pipeline Architecture
 
-The pipeline is built around an OOP-based architecture for efficient batch simulation:
+The pipeline is built around an OOP-based architecture for efficient batch simulation and analysis:
 
 ```
-Parameters (parameters_file.py)
-    ↓
-Ionized Box Generation (generating_ionized_boxes.py)
-    ↓
-Sightline Calculation (calculating_skewers.py)
-    ↓
-Damping Wing Profiles (damping_wings.py)
-    ↓
-Fisher Matrix Analysis → Parameter Constraints
+config/parameters_file.py    — fiducial parameter definitions
+        ↓
+Models(param_ranges)         — constructs parameter grid and rank system
+        ↓
+ionized_boxes.py             — generates 21cmFAST ionized boxes per rank
+        ↓
+calculating_skewers.py       — computes sightlines through simulation boxes
+        ↓
+damping_wings.py             — calculates Ly-α transmission profiles
+        ↓
+Fisher Matrix Analysis       — parameter constraints (separate repo)
 ```
 
 **Key modules:**
-- `generating_ionized_boxes.py` — OOP pipeline for batch generation of 21cmFAST simulation boxes across parameter grids
-- `damping_wings.py` — computes Ly-α damping wing transmission profiles along IGM sightlines
-- `calculating_skewers.py` — generates sightlines through simulation boxes, handling both random and fixed halo positions
-- `calculating_m_pixels.py` — pixel mass calculation utilities
-- `optimized_code_running_models.py` — parallel execution manager for large parameter sweeps
-- `config/parameters_file.py` — parameter grid definitions and ranges
-- `config/constants.py` — physical constants, box size, sightline settings
+
+| Module | Description |
+|---|---|
+| `modelling_class.py` | `Models` class — orchestrates the full simulation suite |
+| `ionized_boxes.py` | Batch generation of 21cmFAST ionized boxes with calibration |
+| `calculating_skewers.py` | Sightline generation and neutral fraction calculation |
+| `damping_wings.py` | Ly-α optical depth and transmission profile computation |
+| `m_pixels.py` | Pixel mass calculation for minimum halo mass validation |
+| `utils.py` | Shared utility functions (Hubble parameter, virial temperature) |
+| `config/constants.py` | Physical constants, box parameters, output paths |
+| `config/parameters_file.py` | Fiducial simulation parameters |
 
 ---
 
@@ -73,73 +81,117 @@ Fisher Matrix Analysis → Parameter Constraints
 
 ### Prerequisites
 
-```bash
-# Install 21cmFAST (semi-numerical reionization simulation)
-pip install 21cmFAST
-# Full installation guide: https://github.com/21cmfast/21cmFAST
+This package requires `py21cmfast` and `hmf`, which have C extensions, these are automatically installed at Step 2.
 
-# Install HMFcalc (halo mass function)
-pip install HMFcalc
-# Full installation guide: https://github.com/halomod/HMFcalc
-```
-
-### Install Dependencies
+### Step 1 — Clone the repository
 
 ```bash
 git clone https://github.com/YashMohan/Damping_wings.git
 cd Damping_wings
-pip install -r requirements.txt
 ```
 
-### Configure
-
-Edit `config/constants.py` and set `newpath` to your desired output directory:
-
-```python
-newpath = "/your/output/directory/"
-```
-
----
-
-## Usage
-
-### Running the Full Pipeline
+### Step 2 — Create the conda environment
 
 ```bash
-python optimized_code_running_models.py
+make env
+# or directly:
+conda env create -f environment.yml
 ```
 
-### Configuring Parameters
+This installs all C dependencies (GSL, FFTW), `py21cmfast`, `hmf`, and all Python dependencies into an isolated environment named `damping-wings`.
 
-**To change the parameter grid** (which parameters to vary and their ranges):
-```python
-# Edit config/parameters_file.py
-# Modify the parameter list and value ranges
+### Step 3 — Activate the environment
+
+```bash
+conda activate damping-wings
 ```
 
-**To change corner model parameters:**
-```python
-# Edit Param_Ranges dictionary in optimized_code_running_models.py
+### Step 4 — Install the package
+
+```bash
+make install-dev
+# or directly:
+pip install -e .
 ```
 
-**To change face model parameters:**
-```python
-# Edit variables_list in optimized_code_running_models.py
+### Step 5 — Verify installation
+
+```bash
+python -c "import damping_wings; print(damping_wings.__version__)"
 ```
-
-### Halo Field Modes
-
-The pipeline supports two halo placement modes:
-- `Halo_field_off/` — halos placed randomly within the simulation volume
-- `Halo_field_on/` — halos placed at physically motivated positions
 
 ---
 
-## Example Output
+## Configuration
 
-![Damping Wing Profiles](results/damping_wing_profiles_z7.png)
+### Output directory
 
-*Comprehensive quantile plots of damping wing profiles at z = 7, showing median profiles and sightline-to-sightline scatter (ΔSW₆₈) for varying reionization parameters.*
+By default, all simulation outputs are written to `./output/`. To change this, set the environment variable before running:
+
+```bash
+export DAMPING_WINGS_OUTPUT=/your/custom/path
+```
+
+Or modify it in Python before calling anything else:
+
+```python
+from damping_wings.config import constants
+constants.newpath = "/your/custom/path"
+```
+
+### Fiducial parameters
+
+```python
+from damping_wings.config import Parameters
+
+# Change fiducial redshift
+Parameters['z'] = 6.0
+
+# Change target neutral fraction
+Parameters['target_xh'] = 0.3
+```
+
+### Box configuration
+
+```python
+from damping_wings.config import constants
+
+constants.L_Box = 50        # Box side length in Mpc
+constants.HII_DIM = 50      # HII grid resolution
+constants.N_sightlines = 5000
+```
+
+> **Important:** Modify configuration values **before** calling `setup_output_dirs()` or instantiating `Models`.
+
+---
+
+## Testing
+
+```bash
+# Unit tests — fast, no simulation required
+make test-unit
+
+# Integration tests — runs actual 21cmFAST simulation (~minutes, ~8GB RAM)
+make test-integration
+```
+
+---
+
+## Development
+
+```bash
+# Run linter
+make lint
+
+# Run type checker
+make type-check
+
+# Remove build artifacts and caches
+make clean
+
+# See all available commands
+make help
+```
 
 ---
 
@@ -150,19 +202,9 @@ The methodology in this pipeline — **constraining parameters of a physical sys
 - **Industrial surrogate modelling** — fast emulators replacing expensive simulations
 - **Sensor fusion** — inferring system state from multiple noisy measurements
 - **Uncertainty quantification** — calibrated parameter bounds from limited data
+- **Digital twin calibration** — matching simulation parameters to observed behaviour
 
-The Fisher Information Matrix approach used here provides the theoretical lower bound on parameter uncertainty (Cramér-Rao bound), making it a principled tool for experimental design and data analysis in any domain.
-
----
-
-## Requirements
-
-See `requirements.txt`. Key dependencies:
-
-- Python 3.8+
-- 21cmFAST
-- NumPy, SciPy, Matplotlib
-- tqdm, tabulate
+The Fisher Information Matrix approach provides the theoretical lower bound on parameter uncertainty (Cramér-Rao bound), making it a principled tool for experimental design and data analysis in any domain.
 
 ---
 

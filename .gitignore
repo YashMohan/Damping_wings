@@ -11,6 +11,7 @@ build/
 *.hdf5
 *.npy
 *.npz
+*.p
 cache/
 
 # Conda/pip environments
@@ -18,15 +19,15 @@ cache/
 .venv
 env/
 
-# Large output files
+# Output files and logs
 output/
 *.log
+
+# Development tools
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # OS
 .DS_Store
 *.swp
-
-output/
-*.h5
-*.hdf5
-*.p
