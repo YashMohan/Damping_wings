@@ -218,4 +218,4 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 **Yash Mohan Sharma**
 Postdoctoral Researcher, Max Planck Institute for Astronomy
-yashmohansharma96@gmail.com · [LinkedIn](https://linkedin.com/in/thisisyashmohan) · [GitHub](https://github.com/YashMohan)
+yashmohansharma96@gmail.com · [LinkedIn](https://linkedin.com/in/thisisyashmohan) · [GitHub](https://github.com/YashMohan) · [Website](https://yashmohan.github.io)
