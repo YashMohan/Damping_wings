@@ -49,6 +49,7 @@ dependencies = [
     "ordered-set>=4.1",
     "tabulate>=0.9",
     "tqdm>=4.65",
+    "corner>=2.2", 
 ]
 
 # ── Optional dependencies ─────────────────────────────────────────────────────

@@ -2,37 +2,18 @@ import numpy as np
 from numpy.typing import NDArray
 from typing import Optional
 import sys
-from ordered_set import OrderedSet
 import itertools
-import pickle
-from multiprocessing import Process
-from tabulate import tabulate
-import time
 import h5py
 import matplotlib.pyplot as plt
-from scipy import optimize
-from scipy.stats import chisquare
-from scipy.stats import qmc
-from scipy import stats
-import random
 from matplotlib.ticker import AutoMinorLocator, MultipleLocator
-from ipywidgets import interact
-from scipy.interpolate import UnivariateSpline
-from scipy.integrate import quad
-import copy
-from matplotlib import rcParams
-import numba
-from numba import njit, prange
+from matplotlib.figure import Figure
+from numba import njit
 import corner
-from IPython import embed
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-from matplotlib.gridspec import GridSpec
-from normal_corner import normal_corner
 
 
-from .config.constants import SimParams, SimParamsRanges, N_sightlines, newpath, H0, Omega_b, Omega_k, Omega_lambda, Omega_m, Nion, Conversion_amu_Mpc, L_Box, HII_DIM, DIM, txt_files, c, seed
+from .config.constants import SimParams, SimParamsRanges, N_sightlines, newpath, plotpath, H0, Omega_b, Omega_k, Omega_lambda, Omega_m, Nion, Conversion_amu_Mpc, L_Box, HII_DIM, DIM, txt_files, c, seed
 from .config.parameters_file import Parameters as params 
-from .modelling import Models 
+from .modelling_class import Models 
 
 def add_proxy(
     clean_data: NDArray[np.float64],
@@ -52,22 +33,23 @@ def add_proxy(
     """
     np.random.seed(seed)
     
+    clean_data = clean_data.copy()
     GammaHI: NDArray[np.float64]    # photoionization rate
     tauLya: NDArray[np.float64]     # Lyman alpha optical depth
     siglntau: NDArray[np.float64]   # This adds the pixel variations on the added proximity zones
     
-    if params.Parameters['z'] == 7.0:
-        print("Redshift, Nion: ", params.Parameters['z'], np.log10(Nion), (Nion/10**57))
+    if params['z'] == 7.0:
+        print("Redshift, Nion: ", params['z'], np.log10(Nion), (Nion/10**57))
         GammaHI = 1.85e-11*(Nion/10**57)*(R/(1+z))**-2 # z= 7
         tauLya = 9.27*(GammaHI/2.5e-13)**-0.55 # z = 7
 
-    elif params.Parameters['z'] == 6.5:
-        print("Redshift: ", params.Parameters['z'])
+    elif params['z'] == 6.5:
+        print("Redshift: ", params['z'])
         GammaHI = 1.85e-11*(R/(1+z))**-2 # z = 6.5
         tauLya = 7.5*(GammaHI/2.5e-13)**-0.55  # z = 6.5
    
-    elif params.Parameters['z'] == 6.0:
-        print("Redshift: ", params.Parameters['z'])
+    elif params['z'] == 6.0:
+        print("Redshift: ", params['z'])
         GammaHI = 3.2e-11*(R/(1+z))**-2 # z = 6
         tauLya = 5.7*(GammaHI/2.5e-13)**-0.55  # z= 6 
     
@@ -114,8 +96,7 @@ def sampler(
     data:NDArray[np.float64], 
     N_data_points: int, 
     N_sample: int, 
-    seed: int, 
-    cov_flag: Optional[bool] = True) -> tuple[NDArray[np.float64],NDArray[np.float64],NDArray[np.float64],NDArray[np.float64]]:
+    seed: int) -> tuple[NDArray[np.float64],NDArray[np.float64],NDArray[np.float64],NDArray[np.float64]]:
     """This function takes the data of some large size N, then breaks it into N_sample of randomly sampled data, each with size N_data_points.
         For our case, we take the damping wing profiles and generate the samples to get the distribution for median profile and scatter width.
         Once the data has been sampled, the mean and variance of median damping wings and scatter-width are returned. 
@@ -132,7 +113,7 @@ def sampler(
         from the set of the sampled data of N_sample median and scatter-width profiles. The median and scatter-width are calculated over N_data_points of 
         randomly selected Lyman alpha damping wing profiles.
     """
-    random.seed(seed)
+    np.random.seed(seed)
 
     sampling: int   # A random profile from the ensemble of Lyman alpha damping wing profiles
     sampled_data: NDArray[np.float64]   # A sample of Lyman alpha damping wing profiles with N_data_points elements
@@ -145,7 +126,7 @@ def sampler(
         sampled_data = np.zeros((N_data_points, len(data[0])))
         
         for i in range(N_data_points):
-            sampling = random.randrange(len(data[:]))
+            sampling = np.random.randint(0, len(data))
             sampled_data[i] = data[sampling]
             
         sampled_median_data[j] =  np.array([np.median(sampled_data[:,i]) for i in range(sampled_data.shape[1])]) 
@@ -166,8 +147,7 @@ def sampler_dist(
     data:NDArray[np.float64], 
     N_data_points: int, 
     N_sample: int, 
-    seed: int, 
-    cov_flag: Optional[bool] = True) -> tuple[NDArray[np.float64],NDArray[np.float64]]:
+    seed: int) -> tuple[NDArray[np.float64],NDArray[np.float64]]:
     """This function takes the data of some large size N, then breaks it into N_sample of randomly sampled data, each with size N_data_points.
        For our case, we take the damping wing profiles and generate the samples to get the distribution for median profile and scatter width.
        This function returns the final sampled distribution instead of just mean and variance.
@@ -183,7 +163,7 @@ def sampler_dist(
         tuple[NDArray[np.float64],NDArray[np.float64]]:  The median and scatter-width distributions of N_sample data profiles, calculated over N_data_points of 
         randomly selected Lyman alpha damping wing profiles.
     """
-    random.seed(seed)
+    np.random.seed(seed)
     
     sampling: int   # A random profile from the ensemble of Lyman alpha damping wing profiles
     sampled_data: NDArray[np.float64]   # A sample of Lyman alpha damping wing profiles with N_data_points elements
@@ -197,7 +177,7 @@ def sampler_dist(
         sampled_data = np.zeros((N_data_points, len(data[0])))
         
         for i in range(N_data_points):
-            sampling = random.randrange(len(data[:]))
+            sampling = np.random.randint(0, len(data))
             sampled_data[i] = data[sampling]
 
         sampled_median_data[j] =  np.array([np.median(sampled_data[:,i]) for i in range(sampled_data.shape[1])])
@@ -218,7 +198,7 @@ def differentiation(ranks: list[int],
                     M_qso_base: int,
                     M_qso_order: int, 
                     seed: int, 
-                    noise: Optional[True]=True) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+                    noise: Optional[bool]=True) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     """This function calculates the first order partial derivative of the data with respect to the parameters defined
        using the ranks. It calculates the derivate using central difference method.
 
@@ -230,29 +210,27 @@ def differentiation(ranks: list[int],
         SNR_M (float): Signal to Noise ratio for the multiplicative/ continuum noise
         z (float): redshift of the quasar
         R (NDArray[np.float64]): The region of Proximity zone
-        model (object): _description_
+        model (object): Instantiated Models object containing the parameter grid and rank list
         M_qso_base (int): Halo Mass parameters for the derivative model
         M_qso_order (int): Halo Mass parameters for the derivative model
         seed (int): simulation seed
-        noise (Optional[True], optional): If the noise should be added to the raw data. Defaults to True.
+        noise (Optional[bool], optional): If the noise should be added to the raw data. Defaults to True.
 
     Returns:
-        tuple[NDArray[np.float64], NDArray[np.float64]]: _description_
+        tuple[NDArray[np.float64], NDArray[np.float64]]: Returns the derivative of the transmission and scatter-width profiles for the given parameter (calculated
+        via rank)
     """
-    tau_1
-    tau_2
-    e_tau_1
-    e_tau_2
-    noisy_e_tau_1
-    noisy_e_tau_2
-    mean_sampled_e_tau_1
-    mean_sampled_e_tau_2
-    mean_sampled_delta_SW_1
-    mean_sampled_delta_SW_2
-    delta_h
-    parameter_name
-    delta_x
-    
+    tau_1: NDArray[np.float64]                      # Optical depth of the model perturbed to the left for derivative
+    tau_2: NDArray[np.float64]                      # Optical depth of the model perturbed to the right for derivative
+    e_tau_1: NDArray[np.float64]                    # Transmission profile of the model perturbed to the left for derivative
+    e_tau_2: NDArray[np.float64]                    # Transmission profile of the model perturbed to the right for derivative
+    noisy_e_tau_1: NDArray[np.float64]              # Noisy transmission profile of the model perturbed to the left for derivative
+    noisy_e_tau_2: NDArray[np.float64]              # Noisy transmission profile of the model perturbed to the right for derivative
+    mean_sampled_e_tau_1: NDArray[np.float64]       # Mean sampled transmission profile of the model perturbed to the left for derivative
+    mean_sampled_e_tau_2: NDArray[np.float64]       # Mean sampled transmission profile of the model perturbed to the right for derivative
+    mean_sampled_delta_SW_1: NDArray[np.float64]    # Mean sampled scatter-width profile of the model perturbed to the left for derivative
+    mean_sampled_delta_SW_2: NDArray[np.float64]    # Mean sampled scatter-width profile of the model perturbed to the right for derivative
+    delta_h: list[list]                             # stores the delta_x denominator for derivative 
     
     with h5py.File(f"{newpath}/skewers_HM_{M_qso_base}_{M_qso_order}_rank_{ranks[1]}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}.h5", 'r') as f:
         tau_1 = f.get("tau")[:]
@@ -280,35 +258,31 @@ def differentiation(ranks: list[int],
     mean_sampled_e_tau_2, _, mean_sampled_delta_SW_2, _ = sampler(noisy_e_tau_2, N_data_points, N_sample, seed)
     
     delta_h = [ [index, elements[0]-elements[-1]] for index,elements in enumerate(zip(model.rank_list[ranks[0]],model.rank_list[ranks[1]])) if np.abs(elements[0]-elements[-1]) > 0]
-    print('delta_h: ', delta_h)
+    
+    if not delta_h:
+        raise ValueError(f"No parameter difference found between ranks {ranks[0]} and {ranks[1]}. "
+                     f"Check that the ranks correspond to different parameter values.")
     
     for differential in delta_h:
-        
-        parameter_name = model.Parameters_names[differential[0]]
-        print("Differentiating the following parameter: ",parameter_name)
-        delta_x = differential[-1]
-    
-        dDW_dpara = (mean_sampled_e_tau_2 - mean_sampled_e_tau_1)/delta_x
-        
-        dSW_dpara = (mean_sampled_delta_SW_2 - mean_sampled_delta_SW_1)/delta_x
+        dDW_dpara = (mean_sampled_e_tau_2 - mean_sampled_e_tau_1)/differential[-1]
+        dSW_dpara = (mean_sampled_delta_SW_2 - mean_sampled_delta_SW_1)/differential[-1]
         
         
     return  dDW_dpara, dSW_dpara
 
-def corr_fisher_matrix(data_set: NDArray[np.float64], 
+def compute_corr_fisher_matrix(data_set: NDArray[np.float64], 
                        ddata_dtheta: NDArray[np.float64], 
                        len_theta: int) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     """ Calculating Fisher Matrix with correlated pixels
 
     Args:
-        data_set (NDArray[np.float64]): _description_
-        ddata_dtheta (NDArray[np.float64]): _description_
-        len_theta (int): _description_
+        data_set (NDArray[np.float64]): The distribution of profiles/ Observables for the Fisher matrix calculation
+        ddata_dtheta (NDArray[np.float64]): The derivative of the observables with respect to the parameters
+        len_theta (int): Number of observables
 
     Returns:
         tuple[NDArray[np.float64], NDArray[np.float64]]: Returns Fisher Matrix with correlated pixels and the corresponding covariance matrix for the parameters
     """
-    
     fisher_matrix: NDArray[np.float64] = np.zeros((len_theta,len_theta))    # Fisher Matrix
     cov_matrix: NDArray[np.float64] = np.cov(data_set.transpose())          # Calculating the covariance matrix
     cov_matrix_inv: NDArray[np.float64] = np.linalg.inv(cov_matrix)         # Inverse of covariance matrix, since, FM = dtheta/dp * C^{-1} * dtheta/dp.T
@@ -319,15 +293,15 @@ def corr_fisher_matrix(data_set: NDArray[np.float64],
     
     return fisher_matrix, cov_fisher_matrix
     
-def uncorr_fisher_matrix(variance: NDArray[np.float64], 
+def compute_uncorr_fisher_matrix(variance: NDArray[np.float64], 
                          ddata_dtheta: NDArray[np.float64], 
                          len_theta: int) -> tuple[NDArray[np.float64],NDArray[np.float64]]:
     """Calculating Fisher Matrix with uncorrelated pixels
 
     Args:
-        variance (NDArray[np.float64]): _description_
-        ddata_dtheta (NDArray[np.float64]): _description_
-        len_theta (int): _description_
+        variance (NDArray[np.float64]): Variance of the sampled distribution of the observables
+        ddata_dtheta (NDArray[np.float64]): The derivative of the observables with respect to the parameters
+        len_theta (int): Number of observables
 
     Returns:
         tuple[NDArray[np.float64],NDArray[np.float64]]: Returns Fisher Matrix with uncorrelated pixels and the corresponding covariance matrix for the parameters
@@ -343,37 +317,115 @@ def uncorr_fisher_matrix(variance: NDArray[np.float64],
     cov_fisher_matrix = np.linalg.inv(fisher_matrix)
     
     return fisher_matrix, cov_fisher_matrix
+
+def plotting_fisher_matrix(sample: NDArray[np.float64]) -> Figure:
+    """ This function generates and returns the contour plot of the given multivariate function
+
+    Args:
+        sample (NDArray[np.float64]): Sample multivariate distribution that needs to be plotted
+
+    Returns:
+        fig: contour plot
+    """
+    
+    variables = [r"$\mathrm{x_{HI}}$", r"$\log\mathrm{t_{q}}$ yr", r"$\mathrm{\log M_{min}}$", r"$\mathrm{\log M_{qso}}$"]
+    sigma_levels = [0.68, 0.95]  # Corresponding to 1σ, 2σ, 3σ- 0.997
+    
+    fig = corner.corner(
+        sample,
+        levels=sigma_levels,
+        plot_density=False,       # Show density plot
+        plot_contours=True,      # Show contours
+        fill_contours=True,      # Fill the contours
+        plot_datapoints=False,   # No data points
+        bins=30,                 # Number of bins in histograms
+        labels=variables,  # Label axes
+        show_titles=True, title_fmt=".2f", title_kwargs={"fontsize": 12},
+        smooth = 1.0,
+    )
+    
+    return fig
     
         
-def prox_fisher_matrix(N_sample: int, 
-                       N_data_points: int, 
-                       SNR_A: float, 
-                       SNR_M: float,
-                       z: NDArray[np.float64], 
-                       R: NDArray[np.float64],
-                       fisher_parameters: dict[str:list,str:list,str:list,str:list], 
-                       M_qso_masses: list[float,float],
-                       M_qso_fiducial: list[int,int],
-                       seed: int, 
-                       noise: Optional[bool] =True) -> tuple[NDArray[np.float64],NDArray[np.float64],NDArray[np.float64],NDArray[np.float64]]:
+def fisher_matrix(N_sample: int, 
+                  N_data_points: int, 
+                  SNR_A: float, 
+                  SNR_M: float,
+                  z: NDArray[np.float64], 
+                  R: NDArray[np.float64],
+                  fisher_parameters: dict[str, list[int]], 
+                  M_qso_masses: list[float],
+                  M_qso_fiducial: list[int],
+                  model: object,
+                  seed: int, 
+                  noise: Optional[bool] =True) -> tuple[NDArray[np.float64],NDArray[np.float64],NDArray[np.float64],NDArray[np.float64]]:
     """_summary_
 
     Args:
-        N_sample (int): _description_
-        N_data_points (int): _description_
-        SNR_A (float): _description_
-        SNR_M (float): _description_
-        z (NDArray[np.float64]): _description_
-        R (NDArray[np.float64]): _description_
-        fisher_parameters (_type_): _description_
-        M_qso_masses (list[float,float]): _description_
-        M_qso_fiducial (list[int,int]): _description_
-        seed (int): _description_
-        noise (Optional[bool], optional): _description_. Defaults to True.
+        N_sample (int): Number of samples
+        N_data_points (int): How many data elements should one sample has
+        SNR_A (float): Signal to Noise ratio for the additive/ spectral noise
+        SNR_M (float): Signal to Noise ratio for the multiplicative/ continuum noise
+        z (NDArray[np.float64]): redshift of the quasar
+        R (NDArray[np.float64]): The region of Proximity zone
+        fisher_parameters (dict[str, list[int]]): Parameters and their corresponding ranks for the Fisher matrix calculation
+        M_qso_masses (list[float,float]): Halo Mass parameters for the derivative model
+        M_qso_fiducial (list[int,int]): Halo Mass parameters for the fiducial model
+        model (object): Instantiated Models object containing the parameter grid and rank list
+        seed (int): simulation seed
+        noise (Optional[bool], optional): _description_. optional): If the noise should be added to the raw data. Defaults to True.
 
     Returns:
-        tuple[NDArray[np.float64],NDArray[np.float64],NDArray[np.float64],NDArray[np.float64]]: _description_
+        tuple[NDArray[np.float64],NDArray[np.float64],NDArray[np.float64],NDArray[np.float64]]: Returns the covariance of the parameters from transmission profiles, 
+        scatter-width profiles, and a combination of both, and the Fisher matrix from the combination of transmission and scatter-width profiles
     """
+
+    lamda: NDArray[np.float64]                          # Observed wavelength
+    tau_fiducial: NDArray[np.float64]                   # Optical depth of the fiducial model
+    tau_1: NDArray[np.float64]                          # Optical depth of the M_qso model perturbed to the left for derivative
+    tau_2: NDArray[np.float64]                          # Optical depth of the M_qso model perturbed to the right for derivative
+    proximity_zone_tau_fiducial: NDArray[np.float64]    # Optical depth of the fiducial model modified with proximity zone effects
+    proximity_zone_tau_1: NDArray[np.float64]           # Optical depth of the M_qso model modified with proximity zone effects, perturbed to the left for derivative
+    proximity_zone_tau_2: NDArray[np.float64]           # Optical depth of the M_qso model modified with proximity zone effects, perturbed to the right for derivative
+    e_tau_fiducial: NDArray[np.float64]                 # Transmission profile of the fiducial model
+    e_tau_1: NDArray[np.float64]                        # Transmission profile of the M_qso model perturbed to the left for derivative
+    e_tau_2: NDArray[np.float64]                        # Transmission profile of the M_qso model perturbed to the right for derivative
+    noisy_e_tau_fiducial: NDArray[np.float64]           # Noisy transmission profile of the fiducial model
+    noisy_e_tau_1: NDArray[np.float64]                  # Noisy transmission profile of the M_qso model perturbed to the left for derivative
+    noisy_e_tau_2: NDArray[np.float64]                  # Noisy transmission profile of the M_qso model perturbed to the right for derivative
+    var_sampled_e_tau_fiducial: NDArray[np.float64]     # Variance of the sampled median transmission profile distribution
+    var_sampled_delta_SW_fiducial: NDArray[np.float64]  # Variance of the sampled scatter-width profile distribution
+    sampled_median_data: NDArray[np.float64]            # Distribution of the median transmission profiles
+    sampled_scatter_width: NDArray[np.float64]          # Distribution of the scatter-width transmission profiles
+    dDW_dP: NDArray[np.float64]                         # Derivatives of transmission profiles with respect to the individual parameters
+    dSW_dP: NDArray[np.float64]                         # Derivatives of scatter-width profiles with respect to the individual parameters
+    iteration: int                                      # iteration over parameters
+    o_halo_mass: list[int]                              # Halo mass parameters for the M_qso derivative
+    base_halo_mass: list[int]                           # Halo mass parameters for the M_qso derivative
+    mean_sampled_e_tau_1: NDArray[np.float64]           # Mean sampled transmission profile of the M_qso model perturbed to the left for derivative
+    mean_sampled_e_tau_2: NDArray[np.float64]           # Mean sampled transmission profile of the M_qso model perturbed to the right for derivative
+    mean_sampled_delta_SW_1: NDArray[np.float64]        # Mean sampled scatter-width profile of the M_qso model perturbed to the left for derivative
+    mean_sampled_delta_SW_2: NDArray[np.float64]        # Mean sampled scatter-width profile of the M_qso model perturbed to the right for derivative
+    delta_h: float                                      # delta_x denominator for M_qso derivative
+    corr_fisher_matrix_DW: NDArray[np.float64]          # Pixel correlated Fisher matrix for the transmission profiles
+    corr_cov_fisher_matrix_DW: NDArray[np.float64]      # Pixel correlated covariance matrix of the parameters of transmission profiles
+    corr_fisher_matrix_SW: NDArray[np.float64]          # Pixel correlated Fisher matrix for the scatter-width profiles
+    corr_cov_fisher_matrix_SW: NDArray[np.float64]      # Pixel correlated covariance matrix of the parameters of transmission and scatter-width profiles
+    uncorr_fisher_matrix_DW: NDArray[np.float64]          # Uncorrelated Fisher matrix for the transmission profiles
+    uncorr_cov_fisher_matrix_DW: NDArray[np.float64]    # Uncorrelated covariance matrix of the parameters of transmission profiles
+    uncorr_fisher_matrix_SW: NDArray[np.float64]        # Uncorrelated Fisher matrix for the scatter-width profiles
+    uncorr_cov_fisher_matrix_SW: NDArray[np.float64]    # Uncorrelated covariance matrix of the parameters of transmission and scatter-width profiles
+    combined_sampled_data: NDArray[np.float64]          # Combination of the transmission and scatter-width profiles
+    combined_ddata_dtheta: NDArray[np.float64]          # Derivative of the transmission and scatter-width profiles combination
+    combined_corr_fisher_matrix: NDArray[np.float64]    # Pixel correlated Fisher matrix for the combination of transmission and scatter-width profiles
+    combined_corr_cov_fisher_matrix: NDArray[np.float64]# Pixel correlated covariance matrix of the parameters of transmission and scatter-width profiles
+    mean_values: NDArray[np.float64]                    # The true values of the parameters
+    
+    
+    
+    
+    
+    
     # Loading the fiducial data, adding the proximity zone and noise to it
     with h5py.File(f"{newpath}/skewers_HM_{M_qso_fiducial[0]}_{M_qso_fiducial[1]}_rank_0_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}.h5", 'r') as f:
         lamda = f.get("lambda")[:]
@@ -391,10 +443,10 @@ def prox_fisher_matrix(N_sample: int,
         print("no noise added")
         noisy_e_tau_fiducial = e_tau_fiducial
    
-    _, var_sampled_e_tau_fiducial, _, var_sampled_delta_SW_fiducial = sampler(noisy_e_tau_fiducial, N_data_points, N_sample, seed, cov_flag = False);
+    _, var_sampled_e_tau_fiducial, _, var_sampled_delta_SW_fiducial = sampler(noisy_e_tau_fiducial, N_data_points, N_sample, seed);
 
     # The sampled distribution of DW and SW
-    sampled_median_data_trimmed, sampled_scatter_width_trimmed = sampler_dist(noisy_e_tau_fiducial, N_data_points, N_sample, seed);
+    sampled_median_data, sampled_scatter_width = sampler_dist(noisy_e_tau_fiducial, N_data_points, N_sample, seed);
 
     # The derivative variables
     dDW_dP = np.zeros((len(fisher_parameters.keys()),len(z)))
@@ -402,12 +454,19 @@ def prox_fisher_matrix(N_sample: int,
     iteration = 0
 
     for parmeters, ranks in fisher_parameters.items(): # This loop runs over all the ranks and calculates the derivative of each ranked parameter w.r.t the fiducial values 
-        dDW_dP[iteration], dSW_dP[iteration] = differentiation(ranks, N_data_points, N_sample, SNR_A, SNR_M,z, R, model, seed, noise)
+        dDW_dP[iteration], dSW_dP[iteration] = differentiation(ranks, 
+                                                               N_data_points, 
+                                                               N_sample, 
+                                                               SNR_A, 
+                                                               SNR_M,
+                                                               z, 
+                                                               R, 
+                                                               model, 
+                                                               M_qso_fiducial[0], 
+                                                               M_qso_fiducial[1], 
+                                                               seed, 
+                                                               noise)
         iteration +=1
-
-    # To calculate the derivative with respect to M_qso
-    halo_mass = pickle.load(open(f"{newpath}/Halo_masses_rank_{0}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}.p","rb"))
-    mass_bins = np.unique(halo_mass)
 
     o_halo_mass = [int(np.floor(np.log10(M_qso))) for M_qso in M_qso_masses ]           # The order of the mass of the halo in the form of Mass = base*10^order, this is an approximation not the exact value of the masses
     base_halo_mass = [int(np.round(10*M_qso/(10**o),0)) for M_qso, o in zip(M_qso_masses,o_halo_mass) ]
@@ -422,7 +481,6 @@ def prox_fisher_matrix(N_sample: int,
     # Adding proximity zone
     proximity_zone_tau_1 = add_proxy(tau_1, z,R, seed)
     e_tau_1 = np.exp(-proximity_zone_tau_1)
-
     proximity_zone_tau_2 = add_proxy(tau_2, z,R, seed)
     e_tau_2 = np.exp(-proximity_zone_tau_2)
 
@@ -435,167 +493,54 @@ def prox_fisher_matrix(N_sample: int,
         noisy_e_tau_1 = e_tau_1
         noisy_e_tau_2 = e_tau_2
 
-    mean_sampled_e_tau_1_trimmed, _, mean_sampled_delta_SW_1_trimmed, _ = sampler(noisy_e_tau_1, N_data_points, N_sample, seed)
-    mean_sampled_e_tau_2_trimmed, _, mean_sampled_delta_SW_2_trimmed, _ = sampler(noisy_e_tau_2, N_data_points, N_sample, seed)
+    mean_sampled_e_tau_1, _, mean_sampled_delta_SW_1, _ = sampler(noisy_e_tau_1, N_data_points, N_sample, seed)
+    mean_sampled_e_tau_2, _, mean_sampled_delta_SW_2, _ = sampler(noisy_e_tau_2, N_data_points, N_sample, seed)
 
     delta_h =  np.log(M_qso_masses[1]) - np.log(M_qso_masses[0])
 
-    dDW_dP[-1] = (mean_sampled_e_tau_2_trimmed - mean_sampled_e_tau_1_trimmed)/delta_h
-    dSW_dP[-1]= (mean_sampled_delta_SW_2_trimmed - mean_sampled_delta_SW_1_trimmed)/delta_h
+    dDW_dP[-1] = (mean_sampled_e_tau_2 - mean_sampled_e_tau_1)/delta_h
+    dSW_dP[-1]= (mean_sampled_delta_SW_2 - mean_sampled_delta_SW_1)/delta_h
 
-    #---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    #---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     # Getting the Fisher matrices
     # Case 1.1: uncorrelated pixel error Fisher Matrix:
-    uncorr_fisher_matrix_DW, uncorr_cov_fisher_matrix_DW = uncorr_fisher_matrix(var_sampled_e_tau_fiducial, dDW_dP, len(fisher_parameters.keys()))
-    uncorr_fisher_matrix_SW, uncorr_cov_fisher_matrix_SW = uncorr_fisher_matrix(var_sampled_delta_SW_fiducial, dSW_dP, len(fisher_parameters.keys()))
+    uncorr_fisher_matrix_DW, uncorr_cov_fisher_matrix_DW = compute_uncorr_fisher_matrix(var_sampled_e_tau_fiducial, dDW_dP, len(fisher_parameters.keys()))
+    uncorr_fisher_matrix_SW, uncorr_cov_fisher_matrix_SW = compute_uncorr_fisher_matrix(var_sampled_delta_SW_fiducial, dSW_dP, len(fisher_parameters.keys()))
 
     # Case 1.2: correlated pixel error Fisher Matrix:
-    corr_fisher_matrix_DW, corr_cov_fisher_matrix_DW = corr_fisher_matrix(sampled_median_data_trimmed, dDW_dP, len(fisher_parameters.keys()))
-    corr_fisher_matrix_SW, corr_cov_fisher_matrix_SW = corr_fisher_matrix(sampled_scatter_width_trimmed, dSW_dP, len(fisher_parameters.keys()))
+    corr_fisher_matrix_DW, corr_cov_fisher_matrix_DW = compute_corr_fisher_matrix(sampled_median_data, dDW_dP, len(fisher_parameters.keys()))
+    corr_fisher_matrix_SW, corr_cov_fisher_matrix_SW = compute_corr_fisher_matrix(sampled_scatter_width, dSW_dP, len(fisher_parameters.keys()))
 
     # Case 1.3: combined fisher matrix for DW and SW with correlated pixel errors:
-    combined_sampled_data = np.concatenate((sampled_median_data_trimmed,sampled_scatter_width_trimmed), axis=1)
+    combined_sampled_data = np.concatenate((sampled_median_data,sampled_scatter_width), axis=1)
     combined_ddata_dtheta = np.concatenate((dDW_dP,dSW_dP), axis=1)
 
-    cov_combined_data = np.cov(combined_sampled_data.transpose())
-    combined_corr_fisher_matrix, combined_corr_cov_fisher_matrix = corr_fisher_matrix(combined_sampled_data, combined_ddata_dtheta, len(fisher_parameters.keys()))
+    combined_corr_fisher_matrix, combined_corr_cov_fisher_matrix = compute_corr_fisher_matrix(combined_sampled_data, combined_ddata_dtheta, len(fisher_parameters.keys()))
 
-    # CORNER PLOTS 
-    mean_values = np.array([params.Parameters['target_xh'], round(np.log10(model.rank_list[0][-1]/365.25/86400),2), params.Parameters['m_min'],np.log10(mass_bins[-8])])        # Change the mass_bin number here as well when changing z
-    variables = [r"$\mathrm{x_{HI}}$", r"$\log\mathrm{t_{q}}$ yr", r"$\mathrm{\log M_{min}}$", r"$\mathrm{\log M_{qso}}$"]
-
-    # combined fisher matrix for DW and SW with correlated pixel errors:
-    combined_sample = np.random.multivariate_normal(mean_values, combined_corr_cov_fisher_matrix, size=10000)
-
-    # figure_1 = corner.corner(combined_sample, labels=variables, plot_density=False, show_titles=True, title_fmt=".2f", title_kwargs={"fontsize": 12})
-
-
-    # DW:
-    # figure_2 = normal_corner.normal_corner(corr_cov_fisher_matrix_DW, mean_values, variables)
-    DW_sample = np.random.multivariate_normal(mean_values, corr_cov_fisher_matrix_DW, size=10000)
-
-    # figure_2 = corner.corner(DW_sample, labels=variables, plot_density=False, show_titles=True, title_fmt=".2f", title_kwargs={"fontsize": 12})
-
-
-    # SW:
-    # figure_3 = normal_corner.normal_corner(corr_cov_fisher_matrix_SW, mean_values, variables)
-    SW_sample = np.random.multivariate_normal(mean_values, corr_cov_fisher_matrix_SW, size=10000)
-
-    # figure_3 = corner.corner(SW_sample, labels=variables, plot_density=False, show_titles=True, title_fmt=".2f", title_kwargs={"fontsize": 12})
-
-    sigma_levels = [0.68, 0.95]  # Corresponding to 1σ, 2σ, 3σ- 0.997
+    mean_values = np.array([params['target_xh'], 
+                            round(np.log10(model.rank_list[0][-1]/365.25/86400),2), 
+                            params['M_min'],
+                            np.log10(M_qso_fiducial[0]*10**(M_qso_fiducial[1]-1))])        # Change the mass_bin number here as well when changing z
     
-    fig_DW = corner.corner(
-        DW_sample,
-        levels=sigma_levels,
-        plot_density=False,       # Show density plot
-        plot_contours=True,      # Show contours
-        fill_contours=True,      # Fill the contours
-        plot_datapoints=False,   # No data points
-        bins=30,                 # Number of bins in histograms
-        labels=variables,  # Label axes
-        show_titles=True, title_fmt=".2f", title_kwargs={"fontsize": 12},
-        smooth = 1.0,
-        color = "b",
-    )
+    combined_sample = np.random.multivariate_normal(mean_values, combined_corr_cov_fisher_matrix, size=10000) # combined fisher matrix for DW and SW with correlated pixel errors:
+    DW_sample = np.random.multivariate_normal(mean_values, corr_cov_fisher_matrix_DW, size=10000)
+    SW_sample = np.random.multivariate_normal(mean_values, corr_cov_fisher_matrix_SW, size=10000)
+    
+    fig_DW = plotting_fisher_matrix(DW_sample)
     axes = np.array(fig_DW.axes).reshape(len(fisher_parameters.keys()), len(fisher_parameters.keys()))  # Adjust for the number of parameters
     axes[0,2].set_title(f"Damping Wing SNR_A {SNR_A} SNR_M {SNR_M}")
     plt.savefig(f'{plotpath}/DW_contour_plot_SNR_A_{SNR_A}SNR_M_{SNR_M}_N_{N_data_points}_N_sample_{N_sample}.png')
-
-    fig_SW = corner.corner(
-        SW_sample,
-        levels=sigma_levels,
-        plot_density=False,       # Show density plot
-        plot_contours=True,      # Show contours
-        fill_contours=True,      # Fill the contours
-        plot_datapoints=False,   # No data points
-        bins=30,                 # Number of bins in histograms
-        labels=variables,  # Label axes
-        show_titles=True, title_fmt=".2f", title_kwargs={"fontsize": 12},
-        smooth = 1.0,
-        color = "r",
-    )
-    axes = np.array(fig_SW.axes).reshape(len(fisher_parameters.keys()), len(fisher_parameters.keys()))  # Adjust for the number of parameters
+    plt.close()
+    
+    fig_SW = plotting_fisher_matrix(SW_sample)
+    axes = np.array(fig_SW.axes).reshape(4, 4)  # Adjust for the number of parameters
     axes[0,2].set_title(f"Scatter Width SNR_A {SNR_A} SNR_M {SNR_M}")
     plt.savefig(f'{plotpath}/SW_contour_plot_SNR_A_{SNR_A}SNR_M_{SNR_M}_N_{N_data_points}_N_sample_{N_sample}.png')
-
-    fig_combined = corner.corner(
-        combined_sample,
-        levels=sigma_levels,
-        plot_density=True,       # Show density plot
-        plot_contours=True,      # Show contours
-        fill_contours=True,      # Fill the contours
-        plot_datapoints=False,   # No data points
-        bins=30,                 # Number of bins in histograms
-        labels=variables,  # Label axes
-        show_titles=True, title_fmt=".2f", title_kwargs={"fontsize": 12},
-        smooth = 1.0,
-        color = "orange",
-    )
-    axes = np.array(fig_combined.axes).reshape(len(fisher_parameters.keys()), len(fisher_parameters.keys()))  # Adjust for the number of parameters
+    plt.close()
+    
+    fig_combined = plotting_fisher_matrix(combined_sample)
+    axes = np.array(fig_combined.axes).reshape(4, 4)  # Adjust for the number of parameters
     axes[0,2].set_title(f"Combined SNR_A {SNR_A} SNR_M {SNR_M}")
     plt.savefig(f'{plotpath}/Combined_contour_plot_SNR_A_{SNR_A}SNR_M_{SNR_M}_N_{N_data_points}_N_sample_{N_sample}.png')
-    plt.show()
-    
-    fig_multiple = corner.corner(
-    DW_sample,
-    labels=variables,  # Label axes
-    levels=sigma_levels,
-    plot_density=False,       # Show density plot
-    plot_contours=True,      # Show contours
-    fill_contours=True,      # Fill the contours
-    plot_datapoints=False,   # No data points
-    bins=30,                 # Number of bins in histograms
-    color = "b",
-    show_titles=True, title_fmt=".2f", title_kwargs={"fontsize": 12},
-    smooth = 1.0,
-    hist2d_kwargs = {"plot_datapoints":False, "alpha":0.5}
-    #labels="DW"
-    )
-
-    # Overlay the second dataset on the same axes
-    corner.corner(
-        SW_sample,
-        fig=fig_multiple,  # Use the existing figure
-        plot_contours=True,
-        fill_contours=True,
-        plot_datapoints=False,   # No data points
-        bins=30,
-        color = "r",
-        show_titles=True, title_fmt=".2f", title_kwargs={"fontsize": 12},
-        smooth = 1.0,
-        hist2d_kwargs = {"plot_datapoints":False, "alpha":0.5}
-        #labels="SW"
-    )
-
-    corner.corner(
-        combined_sample,
-        fig=fig_multiple,  # Use the existing figure
-        plot_contours=True,
-        fill_contours=True,
-        plot_datapoints=False,   # No data points
-        bins=30,
-        color = "orange",
-        show_titles=True, title_fmt=".2f", title_kwargs={"fontsize": 12},
-        smooth = 1.0,
-        hist2d_kwargs = {"plot_datapoints":False, "alpha":0.5}
-        #labels="Combination"
-    )
-
-    # Add legend
-    axes = np.array(fig_multiple.axes).reshape(len(fisher_parameters.keys()), len(fisher_parameters.keys()))  # Adjust for the number of parameters
-    legend_elements = [
-        Patch(color="b", label="DW"),
-        Patch(color="r", label="SW"),
-        Patch(color="orange", label="Combination"),
-    ]
-    axes[1, 2].legend(
-        handles=legend_elements, loc="upper right", fontsize=10,
-    )
-    plt.savefig(f'{plotpath}/smooth_multiple_contour_plot_combined_SNR_A_{SNR_A}SNR_M_{SNR_M}_N_{N_data_points}_N_sample_{N_sample}.png')
-    plt.show()
+    plt.close()
 
     return corr_cov_fisher_matrix_DW, corr_cov_fisher_matrix_SW, combined_corr_fisher_matrix, combined_corr_cov_fisher_matrix
-    
-    
