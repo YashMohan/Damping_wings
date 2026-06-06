@@ -421,11 +421,6 @@ def fisher_matrix(N_sample: int,
     combined_corr_cov_fisher_matrix: NDArray[np.float64]# Pixel correlated covariance matrix of the parameters of transmission and scatter-width profiles
     mean_values: NDArray[np.float64]                    # The true values of the parameters
     
-    
-    
-    
-    
-    
     # Loading the fiducial data, adding the proximity zone and noise to it
     with h5py.File(f"{newpath}/skewers_HM_{M_qso_fiducial[0]}_{M_qso_fiducial[1]}_rank_0_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}.h5", 'r') as f:
         lamda = f.get("lambda")[:]
