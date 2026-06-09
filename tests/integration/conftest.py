@@ -13,13 +13,21 @@ import os
 @pytest.fixture(scope="session")
 def tmp_output(tmp_path_factory):
     """Temporary output directory for the full test session."""
-    path = tmp_path_factory.mktemp("damping_wings_test")
-    constants.newpath   = str(path)
-    constants.plotpath  = os.path.join(str(path), 'plots')
-    constants.txt_files = os.path.join(str(path), 'txt_files')
-    constants.cache_path= os.path.join(str(path), 'cache_files')
+    test_dir = os.path.join(
+        os.environ.get(
+            'DAMPING_WINGS_OUTPUT',
+            os.path.join(os.path.expanduser("~"), ".damping_wings_test")
+        ),
+        "test_output"
+    )
+
+    constants.newpath    = test_dir
+    constants.plotpath   = os.path.join(test_dir, 'plots')
+    constants.txt_files  = os.path.join(test_dir, 'txt_files')
+    constants.cache_path = os.path.join(test_dir, 'cache_files')
+
     setup_output_dirs()
-    return path
+    return test_dir
 
 @pytest.fixture(scope="session")
 def cache_obj(tmp_output):
