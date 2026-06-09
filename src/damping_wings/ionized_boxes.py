@@ -282,14 +282,20 @@ def generate_ion_boxes(initial_conditions: p21c.InitialConditions, cache:  p21c.
         )   
 
     #-----------------------------------------------------------------------------
+    # Filter out zero-mass halos before saving
+    halo_masses = Halo_field.get("halo_masses")
+    halo_coords = Halo_field.get("halo_coords")
+    valid = halo_masses > 0
+    halo_masses = halo_masses[valid]
+    halo_coords = halo_coords[valid]
     #-----------------------------------------------------------------------------
     
     #-----------------------------------------------------------------------------
     print("Writing data to files")
     pickle.dump(ionized_field.get("neutral_fraction"),open( f"{newpath}/Ionized_box_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p", "wb" ))
     pickle.dump(perturbed_field.get("density"),open( f"{newpath}/Density_field_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p", "wb" ))
-    pickle.dump(Halo_field.get("halo_coords"),open( f"{newpath}/Halo_coords_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p", "wb" ))
-    pickle.dump(Halo_field.get("halo_masses"),open( f"{newpath}/Halo_masses_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p", "wb" ))
+    pickle.dump(halo_coords,open( f"{newpath}/Halo_coords_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p", "wb" ))
+    pickle.dump(halo_masses,open( f"{newpath}/Halo_masses_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p", "wb" ))
     # pickle.dump(Updated_Halo_field.get("halo_mass"),open( f"{newpath}/Halo_masses_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p", "wb" ))
     
     print("Plotting the slice of ionized box")    
