@@ -52,7 +52,7 @@ def Get_me_M_min(initial_conditions: p21c.InitialConditions) -> float:
     rho_avg = Omega_m*rho_c*(avg_den+1) 
 
     M_pixels = rho_avg*(L_Box/(DIM*(1+Parameters['z'])))**3
-    return M_pixels
+    return float(M_pixels)
 
 
 if __name__ == '__main__':
