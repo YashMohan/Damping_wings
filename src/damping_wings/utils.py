@@ -6,7 +6,7 @@ import numpy as np
 from numba import jit
 import os
 
-from .config.constants import H0, Omega_m, Omega_lambda, Omega_k, h, newpath, plotpath, txt_files, cache_path
+from .config import constants as _constants
 
 @jit(nopython=True)
 def H(z: float) -> float:
@@ -34,5 +34,6 @@ def calculate_t_vir (z: float, xh: float, m: float) -> float:
 
 def setup_output_dirs() -> None:
     """Create required output directories. Call once before running the pipeline."""
-    for path in [newpath, plotpath, txt_files, cache_path]:
+    for path in [_constants.newpath, _constants.plotpath,
+                 _constants.txt_files, _constants.cache_path]:
         os.makedirs(path, exist_ok=True)
