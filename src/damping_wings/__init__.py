@@ -8,6 +8,7 @@ Author: Yash Mohan Sharma
 
 from .modelling_class import Models
 from .utils import H, calculate_t_vir, setup_output_dirs
+from .m_pixels import Get_me_M_min
 
 __version__ = "0.1.0"
 __author__ = "Yash Mohan Sharma"
