@@ -19,8 +19,13 @@ import sys
 from numba import jit
 import pickle
 import py21cmfast as p21c
-from .config.constants import SimParams, newpath, H0, G, Omega_b, Omega_k, Omega_lambda, Omega_m, c, Nion, Conversion_amu_Mpc, L_Box, HII_DIM, DIM, txt_files, n_pixels, dl, N_sightlines,  seed
 from .utils import H
+# Module import for configurable constants — read dynamically at call time
+from .config import constants as _constants
+# Snapshot imports for physical constants — never change, fine as-is
+from .config.constants import H0, Omega_m, Omega_lambda, Omega_k, Omega_b, c, G, h, \
+    Nion, R_alpha, Conversion_amu_Mpc, Conversion_kg_Solar_mass, Conversion_m_to_Mpc, \
+    dl, n_pixels
 #-----------------------------------------------------------------------------
 # Seed
 np.random.seed(1000)
@@ -162,9 +167,9 @@ def calculate_skewers(base_halo_mass: int, o_halo_mass: int, new_halo_coords: ND
 
     '''
 
-    if not os.path.exists(newpath):
+    if not os.path.exists(_constants.newpath):
         raise FileNotFoundError(
-            f"Output directory '{newpath}' not found. "
+            f"Output directory '{_constants.newpath}' not found. "
             "Call setup_output_dirs() before running the pipeline."
         )
     
@@ -193,14 +198,14 @@ def calculate_skewers(base_halo_mass: int, o_halo_mass: int, new_halo_coords: ND
     xh: NDArray[np.float64] # Neutral fraction along the length of skewer
     den: NDArray[np.float64] # Density along the length of skewer
    
-    halo_x_coord = new_halo_coords[:,0]*L_Box/HII_DIM
-    halo_y_coord = new_halo_coords[:,1]*L_Box/HII_DIM
-    halo_z_coord = new_halo_coords[:,2]*L_Box/HII_DIM
+    halo_x_coord = new_halo_coords[:,0]*_constants.L_Box/_constants.HII_DIM
+    halo_y_coord = new_halo_coords[:,1]*_constants.L_Box/_constants.HII_DIM
+    halo_z_coord = new_halo_coords[:,2]*_constants.L_Box/_constants.HII_DIM
     
     
-    xx = np.linspace(0,HII_DIM-1,HII_DIM)
-    yy = np.linspace(0,HII_DIM-1,HII_DIM)
-    zz = np.linspace(0,HII_DIM-1,HII_DIM)
+    xx = np.linspace(0,_constants.HII_DIM-1,_constants.HII_DIM)
+    yy = np.linspace(0,_constants.HII_DIM-1,_constants.HII_DIM)
+    zz = np.linspace(0,_constants.HII_DIM-1,_constants.HII_DIM)
     
     interp_ionised_box = RegularGridInterpolator((xx,yy,zz), ionised_box)
     interp_density_field = RegularGridInterpolator((xx,yy,zz), density_field)
@@ -244,15 +249,15 @@ def calculate_skewers(base_halo_mass: int, o_halo_mass: int, new_halo_coords: ND
         
         
         #Enabling the periodic boundary condition
-        X[i] = X[i] - (HII_DIM-1)*(np.floor(X[i])//(HII_DIM-1))
-        Y[i] = Y[i] - (HII_DIM-1)*(np.floor(Y[i])//(HII_DIM-1))
-        Z[i] = Z[i] - (HII_DIM-1)*(np.floor(Z[i])//(HII_DIM-1))
+        X[i] = X[i] - (_constants.HII_DIM-1)*(np.floor(X[i])//(_constants.HII_DIM-1))
+        Y[i] = Y[i] - (_constants.HII_DIM-1)*(np.floor(Y[i])//(_constants.HII_DIM-1))
+        Z[i] = Z[i] - (_constants.HII_DIM-1)*(np.floor(Z[i])//(_constants.HII_DIM-1))
         
         xh[i], den[i], Rion[i] = generate_densities(tq_final, X[i], Y[i], Z[i], interp_ionised_box, interp_density_field, Parameters)
         
         
         
-    with h5py.File(f"{newpath}/xh_den_HM_{base_halo_mass}_{o_halo_mass}_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.h5", 'w') as f:    
+    with h5py.File(f"{_constants.newpath}/xh_den_HM_{base_halo_mass}_{o_halo_mass}_rank_{rank}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}__constants.seed_{_constants.seed}.h5", 'w') as f:    
         f.create_dataset("xh", data = xh)
         f.create_dataset("den", data = den)
         f.create_dataset("Rion", data = Rion)
