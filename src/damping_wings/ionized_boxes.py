@@ -230,7 +230,7 @@ def generate_ion_boxes(initial_conditions: p21c.InitialConditions, cache:  p21c.
     print(f'\tf_esc : {f_esc} for the parameters of rank : {rank}')
     print('\tPop2 ion = ',calibrate_pop2_ion)
     
-    with open(f'{txt_files}/Additional_data_{rank}_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}.txt', 'w') as f:
+    with open(f'{_constants.txt_files}/Additional_data_{rank}_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.txt', 'w') as f:
         f.write(f'f_esc {f_esc} \n')
         f.write(f'Pop2 ion {calibrate_pop2_ion}')
     #-----------------------------------------------------------------------------
