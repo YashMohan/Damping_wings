@@ -33,7 +33,7 @@ dr = np.arange(0,n_pixels,dl)    # Distance travelled across any vector
 # @jit(nopython=True)
 def sample_spherical(npoints: int, ndim: int= 3) -> NDArray[np.float64]:
     '''
-    This function gives n_points on the surface of n_dimensional sphere
+    This function gives n_points on the surface of an n-dimensional sphere
 
     Parameters
     ----------
@@ -78,39 +78,42 @@ def generate_densities(
         Parameters (SimParams): Simulation parameters
 
     Returns:
-        tuple[NDArray[np.float64], NDArray[np.float64], float]: neutral fraction and density along the length of skewer, and the size of the ionised bubble
+        tuple[NDArray[np.float64], NDArray[np.float64], float]: neutral fraction and density along the length of the skewer, and the size of the ionised bubble
     """
     len_z: int = n_pixels
     z_red: NDArray[np.float64] = np.linspace(Parameters['z'],Parameters['z']-1.0,num=len_z)  # redshift space over which we will calculate our damping wings, it has the same size as the number of pixels 
-    tol: float = 0.5    # Tolerence value for ionized sphere around a halo
+    tol: float = 0.5    # Tolerance value for ionized sphere around a halo
     Rion: float = 0.0   # Radius of the sphere
     xh: NDArray[np.float64] = np.zeros(n_pixels) # Calculating the x_h along (X,Y,Z)
     den: NDArray[np.float64] = np.zeros(n_pixels) # Calculating the density along (X,Y,Z)
-    n_ion_sum: NDArray[np.float64] = np.zeros(n_pixels)   # Calculating the total number of ionized gas within a Range of radius r carved by quasar
+    n_ion_sum: NDArray[np.float64] = np.zeros(n_pixels)   # Calculating the total number of ionized gas within a Range of radius r carved by the quasar
     r: NDArray[np.float64] = np.zeros(n_pixels)    # Calculating the length of the skewer
     # sphere_index: int = 0
     xh: NDArray[np.float64]     # Interpolated values of xH along the skewer
     den: NDArray[np.float64]    # Interpolated values of density along the skewer
+    XH: float
+    DEN: float
+    n_HI: float                 # Neutral hydrogen density for a given pixel
 
     #-----------------------------------------------------------------------------
     # Need to get the quasar lifetime drawn from a distribution, rather than just a single number
-    # The distribution will be lognormal with tq as mean value and std deviation of 0.5
+    # The distribution will be lognormal with tq as the mean value and a standard deviation of 0.5
     # dist = lognorm.pdf(total,mean,stddev)     
     if tq == 0:    # If the quasar is off
         for j in range (0,n_pixels):
-            xh[j] = interp_ionised_box([X[j],Y[j],Z[j]])  
-            den[j] = interp_density_field([X[j],Y[j],Z[j]])         
+            xh[j] = interp_ionised_box([X[j],Y[j],Z[j]])[0]  
+            den[j] = interp_density_field([X[j],Y[j],Z[j]])[0]         
             
-        return xh,den, Rion
+        return xh, den, Rion
             
-    # If the quasar is on then it will carve up some Range of ionized gas around the halo with the 'radius' = Rion. Note: It is not exacatly a sphere
+    # If the quasar is on, then it will carve up a range of ionized gas around the halo with the 'radius' = Rion. Note: It is not exactly a sphere
     
 
     for k in range(0,n_pixels-1):
         del_r = -(z_red[k+1] - z_red[k])*c/(H(z_red[k])*(1+z_red[k]))
         r[k+1] = r[k] + del_r
-        XH = interp_ionised_box([X[k],Y[k],Z[k]])
-        DEN = interp_density_field([X[k],Y[k],Z[k]])
+        XH = interp_ionised_box([X[k],Y[k],Z[k]])[0]
+        DEN = interp_density_field([X[k],Y[k],Z[k]])[0]
         
         rho_c = (3*H(z_red[k])**2)*Conversion_amu_Mpc/(8*np.pi*G)
         n_HI = Omega_b*rho_c*XH*(DEN+1)
@@ -125,8 +128,8 @@ def generate_densities(
             xh[j] = 0.0  # Within Rion, all the gas is ionized
             # sphere_index = j
         else:
-            xh[j] = interp_ionised_box([X[j],Y[j],Z[j]])   
-        den[j] = interp_density_field([X[j],Y[j],Z[j]])
+            xh[j] = interp_ionised_box([X[j],Y[j],Z[j]])[0]
+        den[j] = interp_density_field([X[j],Y[j],Z[j]])[0]
     
     return xh, den, Rion
     
@@ -146,11 +149,11 @@ def calculate_skewers(base_halo_mass: int, o_halo_mass: int, new_halo_coords: ND
     new_halo_coords : Array
         x,y,z coordinates of the halos in the given mass bin
     ionised_box : Array
-        Neutral fraction at each pixels in the box
+        Neutral fraction at each pixel in the box
     density_field : Array
         Density of matter at each pixel in the box
     rank : Integer, Optional
-        Tells the code which parameter file to pick. If no rank is provided then it picks the rank -1, which is the default Parameters file.
+        Tells the code which parameter file to pick. If no rank is provided, then it picks rank -1, which is the default Parameters file.
 
 
     Returns
@@ -180,7 +183,7 @@ def calculate_skewers(base_halo_mass: int, o_halo_mass: int, new_halo_coords: ND
     Z: NDArray[np.float64]  # Z coordinates of all the skewers
     Random_halo: NDArray[np.float64]   # A set of random halos selected from the total list of halos
     Rion: NDArray[np.float64]   # The radius of the bubble ionized by the halo
-    sphere_index: NDArray[np.float64]   # The pixel of the radius along the length of skewer
+    sphere_index: NDArray[np.float64]   # The pixel of the radius along the length of the skewer
     xi: float # x coordinate of random direction vector
     yi: float # y coordinate of random direction vector
     zi: float # z coordinate of random direction vector
