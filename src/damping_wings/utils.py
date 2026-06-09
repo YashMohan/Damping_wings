@@ -11,7 +11,7 @@ from .config import constants as _constants
 @jit(nopython=True)
 def H(z: float) -> float:
     """Hubble-Lemaître parameter at redshift z."""
-    return H0 * (Omega_m*(1+z)**3 + Omega_lambda + Omega_k*((1+z)**2))**0.5
+    return _constants.H0 * (_constants.Omega_m*(1+z)**3 + _constants.Omega_lambda + _constants.Omega_k*((1+z)**2))**0.5
 
 # @jit(nopython=True)
 def calculate_t_vir (z: float, xh: float, m: float) -> float:
