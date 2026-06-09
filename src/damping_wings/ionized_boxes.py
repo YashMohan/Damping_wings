@@ -172,9 +172,9 @@ def generate_ion_boxes(initial_conditions: p21c.InitialConditions, cache:  p21c.
     
     '''
     
-    if not os.path.exists(newpath):
+    if not os.path.exists(_constants.newpath):
         raise RuntimeError(
-            f"Output directory '{newpath}' does not exist. "
+            f"Output directory '{_constants.newpath}' does not exist. "
             "Call setup_output_dirs() before running the pipeline."
         )
 
