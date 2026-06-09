@@ -144,7 +144,7 @@ def damping_wings(base: int, order: int, Parameters: SimParams, rank: int = 0) -
     var = np.zeros(len_z)
     
     # print("In damping wing function")    
-    with h5py.File(f"{newpath}/xh_den_HM_{base}_{order}_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_Rion_sphere_index.h5", 'r') as f:
+    with h5py.File(f"{newpath}/xh_den_HM_{base}_{order}_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.h5", 'r') as f:
         Xh = f.get("xh")[:]
         Den = f.get("den")[:]
     
@@ -164,7 +164,7 @@ def damping_wings(base: int, order: int, Parameters: SimParams, rank: int = 0) -
     e_tau_avg = np.exp(-tau_avg)
     
     
-    with h5py.File(f"{newpath}/skewers_HM_{base}_{order}_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_Rion.h5", 'w') as f:    
+    with h5py.File(f"{newpath}/skewers_HM_{base}_{order}_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.h5", 'w') as f:    
         f.create_dataset("lambda", data = lamda)
         f.create_dataset("tau", data = tau_z)
         f.create_dataset("tau_avg", data = tau_avg)
@@ -182,15 +182,13 @@ def damping_wings(base: int, order: int, Parameters: SimParams, rank: int = 0) -
         var[i] = statistics.variance(e_tau_z[:,i])
     
     sd = np.sqrt(var)    
-    with h5py.File(f"{newpath}/quantile_data_{base}_{order}_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_Rion.h5", 'w') as f:  
-        
+    with h5py.File(f"{newpath}/quantile_data_{base}_{order}_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.h5", 'w') as f:  
         f.create_dataset("low_quantile", data = low_quantile)
         f.create_dataset("mid_quantile", data = mid_quantile)
         f.create_dataset("up_quantile", data = up_quantile)
         f.create_dataset("diff_quantile", data = diff_quantile)
         
-    with h5py.File(f"{newpath}/statistics_{base}_{order}_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_Rion.h5", 'w') as f:  
-        
+    with h5py.File(f"{newpath}/statistics_{base}_{order}_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.h5", 'w') as f:  
         f.create_dataset("variance", data = var)
         f.create_dataset("standard_deviation", data = sd)
         
