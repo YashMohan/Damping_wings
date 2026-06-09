@@ -15,7 +15,7 @@ import h5py
 from numba import jit
 import statistics
 import py21cmfast as p21c
-from .config.constants import SimParams, newpath, H0, Omega_b, Omega_k, Omega_lambda, Omega_m, Nion, Conversion_amu_Mpc, L_Box, HII_DIM, DIM, txt_files, R_alpha, c, n_pixels, dl, N_sightlines
+from .config.constants import SimParams, newpath, H0, Omega_b, Omega_k, Omega_lambda, Omega_m, Nion, Conversion_amu_Mpc, L_Box, HII_DIM, DIM, txt_files, R_alpha, c, n_pixels, dl, N_sightlines, seed
 from .config import parameters_file as params
 from .utils import H
 #-----------------------------------------------------------------------------
