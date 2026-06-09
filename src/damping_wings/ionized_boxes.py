@@ -20,9 +20,12 @@ import pickle
 from scipy import optimize
 import time
 time_start = time.perf_counter()
-
-from .config.constants import SimParams, N_sightlines, newpath, plotpath, L_Box, HII_DIM, DIM, txt_files, seed
-from .config.parameters_file import Parameters as params    
+from .config.parameters_file import Parameters as params   
+from .config import constants as _constants
+# Snapshot imports for physical constants — never change, fine as-is
+from .config.constants import H0, Omega_m, Omega_lambda, Omega_k, Omega_b, c, G, h, \
+    Nion, R_alpha, Conversion_amu_Mpc, Conversion_kg_Solar_mass, Conversion_m_to_Mpc, \
+    dl, n_pixels
 
 #----------------------------------------------------------------------------------------------------------------------------------------------------------
 def calibrate(HII_f_esc: float, Parameters: SimParams, initial_conditions: p21c.InitialConditions) -> float:
@@ -292,16 +295,16 @@ def generate_ion_boxes(initial_conditions: p21c.InitialConditions, cache:  p21c.
     
     #-----------------------------------------------------------------------------
     print("Writing data to files")
-    pickle.dump(ionized_field.get("neutral_fraction"),open( f"{newpath}/Ionized_box_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p", "wb" ))
-    pickle.dump(perturbed_field.get("density"),open( f"{newpath}/Density_field_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p", "wb" ))
-    pickle.dump(halo_coords,open( f"{newpath}/Halo_coords_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p", "wb" ))
-    pickle.dump(halo_masses,open( f"{newpath}/Halo_masses_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p", "wb" ))
-    # pickle.dump(Updated_Halo_field.get("halo_mass"),open( f"{newpath}/Halo_masses_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p", "wb" ))
+    pickle.dump(ionized_field.get("neutral_fraction"),open( f"{_constants.newpath}/Ionized_box_rank_{rank}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.p", "wb" ))
+    pickle.dump(perturbed_field.get("density"),open( f"{_constants.newpath}/Density_field_rank_{rank}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.p", "wb" ))
+    pickle.dump(halo_coords,open( f"{_constants.newpath}/Halo_coords_rank_{rank}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.p", "wb" ))
+    pickle.dump(halo_masses,open( f"{_constants.newpath}/Halo_masses_rank_{rank}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.p", "wb" ))
+    # pickle.dump(Updated_Halo_field.get("halo_mass"),open( f"{_constants.newpath}/Halo_masses_rank_{rank}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.p", "wb" ))
     
     print("Plotting the slice of ionized box")    
     plotting.coeval_sliceplot(ionized_field, "neutral_fraction");
     plt.title("Ionized Box Slice")
-    plt.savefig(f"{plotpath}/ionised_box_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}.png" )
+    plt.savefig(f"{_constants.plotpath}/ionised_box_rank_{rank}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.png" )
     plt.close()
 #----------------------------------------------------------------------------------------------------------------------------------------------------------
 
