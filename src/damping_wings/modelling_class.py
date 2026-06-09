@@ -333,7 +333,7 @@ class Models():
             Parameters = dict(zip(self.Parameters_names,self.rank_list[rank_index]))
             Parameters['T_vir'] = calculate_t_vir(z = Parameters['z'], xh = Parameters['target_xh'], m = Parameters['m_min'])
             print(Parameters)
-            print("seed: ",seed," L_Box: ",L_Box)
+            print("seed: ",_constants.seed," L_Box: ",_constants.L_Box)
             generate_ion_boxes(initial_conditions,cache_obj,Parameters,rank_index)   # Generating the ionized box
             
             #--------------------------------------------------------------------------------------------------------------------------------------------------------
