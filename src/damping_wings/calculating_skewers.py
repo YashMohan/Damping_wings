@@ -219,22 +219,21 @@ def calculate_skewers(base_halo_mass: int, o_halo_mass: int, new_halo_coords: ND
     
     # Storing the coordinates along the sightline for each halo
     
-    X = [[]*n_pixels]*N_sightlines
-    Y = [[]*n_pixels]*N_sightlines
-    Z = [[]*n_pixels]*N_sightlines   
-    xh = [[]*n_pixels]*N_sightlines 
-    den = [[]*n_pixels]*N_sightlines 
+    X = [[]*n_pixels]*_constants.N_sightlines
+    Y = [[]*n_pixels]*_constants.N_sightlines
+    Z = [[]*n_pixels]*_constants.N_sightlines   
+    xh = [[]*n_pixels]*_constants.N_sightlines 
+    den = [[]*n_pixels]*_constants.N_sightlines 
            
-    Random_halo = np.zeros(N_sightlines, dtype=int) 
+    Random_halo = np.zeros(_constants.N_sightlines, dtype=int) 
     
-    Rion = np.zeros(N_sightlines)
-    sphere_index = np.zeros(N_sightlines)
+    Rion = np.zeros(_constants.N_sightlines)
+    sphere_index = np.zeros(_constants.N_sightlines)
     
-    for i in range(0,N_sightlines):
+    for i in range(0,_constants.N_sightlines):
         Random_halo[i] = random.randrange(len(halo_x_coord))    # Picks up a random halo from the given range of halos
 
-        
-    for i in range(0,N_sightlines):   # Loop over all sightlines
+    for i in range(0,_constants.N_sightlines):   # Loop over all sightlines
         
         xi, yi, zi = sample_spherical(1)
 
@@ -254,8 +253,7 @@ def calculate_skewers(base_halo_mass: int, o_halo_mass: int, new_halo_coords: ND
         Z[i] = Z[i] - (_constants.HII_DIM-1)*(np.floor(Z[i])//(_constants.HII_DIM-1))
         
         xh[i], den[i], Rion[i] = generate_densities(tq_final, X[i], Y[i], Z[i], interp_ionised_box, interp_density_field, Parameters)
-        
-        
+               
         
     with h5py.File(f"{_constants.newpath}/xh_den_HM_{base_halo_mass}_{o_halo_mass}_rank_{rank}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}__constants.seed_{_constants.seed}.h5", 'w') as f:    
         f.create_dataset("xh", data = xh)
