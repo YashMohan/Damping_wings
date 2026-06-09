@@ -13,12 +13,6 @@ dependencies:
   - pkg-config
 
   # ── Core scientific Python stack ─────────────────────────────────────────────
-  - numpy>=1.24
-  - scipy>=1.10
-  - matplotlib>=3.7
-  - astropy>=5.3
-  - h5py>=3.8
-  - numba>=0.57
   - click
   - pyyaml
   - cffi
@@ -29,15 +23,9 @@ dependencies:
   - tabulate>=0.9
   - tqdm>=4.65
 
-  # ── Dev tools ────────────────────────────────────────────────────────────────
-  - pytest>=7.4
-  - pytest-cov>=4.1
-
   # ── pip-installed packages ────────────────────────────────────────────────────
   - pip
   - pip:
     - 21cmFAST
     - hmf
-    - mypy>=1.5
-    - ruff>=0.1
     - hatchling
