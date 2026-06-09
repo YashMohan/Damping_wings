@@ -25,7 +25,7 @@ from .config import constants as _constants
 # Snapshot imports for physical constants — never change, fine as-is
 from .config.constants import H0, Omega_m, Omega_lambda, Omega_k, Omega_b, c, G, h, \
     Nion, R_alpha, Conversion_amu_Mpc, Conversion_kg_Solar_mass, Conversion_m_to_Mpc, \
-    dl, n_pixels
+    dl, n_pixels, SimParams, SimParamsRanges
 #-----------------------------------------------------------------------------
 # Seed
 np.random.seed(1000)
