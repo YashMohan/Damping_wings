@@ -20,11 +20,6 @@ from .config import parameters_file as params
 from .utils import H
 #-----------------------------------------------------------------------------
 
-#---------------------------------------------------------------------------
-if not os.path.exists(newpath):
-    sys.exit()
-#-----------------------------------------------------------------------------
-
 @jit(nopython=True)
 def I(x: float) -> float:
     '''
@@ -103,15 +98,20 @@ def damping_wings(base: int, order: int, Parameters: SimParams, rank: int = 0) -
     base : Integer
         Base of the value of halo mass, it is provided to separate halos and their data files
     order : Integer
-        Order of the value of halo mass, it is provided to separate halos and their data files
+        Order of the value of halo mass, is provided to separate halos and their data files
     rank : Integer, Optional
-        Tells the code which parameter file to pick. If no rank is provided then it picks the rank -1, which is the default Parameters file.
+        Tells the code which parameter file to pick. If no rank is provided, then it picks the rank -1, which is the default Parameters file.
 
     Returns
     -------
     None.
 
     '''
+    if not os.path.exists(newpath):
+        raise FileNotFoundError(
+            f"Output directory '{newpath}' not found. "
+            "Call setup_output_dirs() before running the pipeline."
+        )
     
     len_z: int # Pixel length of redshift array
     z: NDArray[np.float64]  # Redshift along the skewer sightline 
