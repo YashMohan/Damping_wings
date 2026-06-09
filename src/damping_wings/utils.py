@@ -25,11 +25,11 @@ def calculate_t_vir (z: float, xh: float, m: float) -> float:
     Returns:
         float: Virial Temperature
     """
-    Omega_m_z = (Omega_m*(1+z)**3)/(Omega_m*(1+z)**3 + Omega_lambda)                                 
+    Omega_m_z = (_constants.Omega_m*(1+z)**3)/(_constants.Omega_m*(1+z)**3 + _constants.Omega_lambda)                                 
     d = Omega_m_z**2 -1
     Delta_c = 18*np.pi**2 +82*d -39*d**2
     mu = xh*0.5 + (1-xh)
-    t_vir = (1.98*10**4)*(mu/0.6)*((10**(m)*h/10**8)**(2/3))*(Omega_m*Delta_c/(Omega_m_z*18*np.pi**2))*((1+z)/10)
+    t_vir = (1.98*10**4)*(mu/0.6)*((10**(m)*_constants.h/10**8)**(2/3))*(_constants.Omega_m*Delta_c/(Omega_m_z*18*np.pi**2))*((1+z)/10)
     return round(np.log10(t_vir), 2)
 
 def setup_output_dirs() -> None:
