@@ -183,6 +183,8 @@ class Models():
         new_halo_mass = self.halo_mass[m]        
         new_halo_coords = self.halo_coords[m]    
         n_halos = len(new_halo_mass)        
+        print(f"Unique masses in bin {mass_index}: {np.unique(new_halo_mass)}")
+        print(f"Number of unique: {len(np.unique(new_halo_mass))}")
         o_halo_mass = int(np.floor(np.log10(np.unique(new_halo_mass))))             
         base_halo_mass = int(np.round(new_halo_mass[0]/(10**o_halo_mass),0)) 
         
