@@ -183,8 +183,8 @@ class TestSampler:
     def test_more_samples_lower_variance(self, mock_transmission_profiles):
         """More bootstrap samples should reduce variance of the mean estimate."""
         from damping_wings.fisher_matrix import sampler
-        _, var_small, _, _ = sampler(mock_transmission_profiles, N_data_points=10, N_sample=10,  seed=42)
-        _, var_large, _, _ = sampler(mock_transmission_profiles, N_data_points=10, N_sample=500, seed=42)
+        _, var_small, _, _ = sampler(mock_transmission_profiles, N_data_points=10, N_sample=200,  seed=42)
+        _, var_large, _, _ = sampler(mock_transmission_profiles, N_data_points=100, N_sample=500, seed=42)
         assert np.mean(var_large) < np.mean(var_small)
 
 
