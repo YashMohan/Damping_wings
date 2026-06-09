@@ -24,12 +24,7 @@ from .utils import H
 #-----------------------------------------------------------------------------
 # Seed
 np.random.seed(1000)
-random.seed(1000)
-
-if not os.path.exists(newpath):
-    print("Could not find the directory to load data")
-    sys.exit()
-    
+random.seed(1000)    
 #-----------------------------------------------------------------------------
 dr = np.arange(0,n_pixels,dl)    # Distance travelled across any vector
 
@@ -163,6 +158,12 @@ def calculate_skewers(base_halo_mass: int, o_halo_mass: int, new_halo_coords: ND
     None.
 
     '''
+
+    if not os.path.exists(newpath):
+        raise FileNotFoundError(
+            f"Output directory '{newpath}' not found. "
+            "Call setup_output_dirs() before running the pipeline."
+        )
     
     #----------------------------------------------------------------------------------------------------------------------------------------------------------
     # Storing x,y and z coords of the halos separately
