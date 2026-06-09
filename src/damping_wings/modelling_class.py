@@ -1,6 +1,6 @@
 """
 Modelling class for the damping wings pipeline.
-Defines the Models class which orchestrates the full simulation suite.
+Defines the Models class, which orchestrates the full simulation suite.
 """
 from typing import Optional
 from numpy.typing import NDArray
@@ -18,12 +18,16 @@ import py21cmfast as p21c
 
 #-----------------------------------------------------------------------------
 # Models
-from .config.constants import SimParams, SimParamsRanges, N_sightlines, newpath, H0, Omega_b, Omega_k, Omega_lambda, Omega_m, Nion, Conversion_amu_Mpc, L_Box, HII_DIM, DIM, txt_files, c, seed
 from .config.parameters_file import Parameters as params 
 from .ionized_boxes import generate_ion_boxes        # This code generates ionized boxes of the given parameters and initial conditions
 from .calculating_skewers import calculate_skewers        # This code calculates the neutral fraction weighted over density from different halos along some random sightlines for a given ionized box
 from .damping_wings import damping_wings        # For a given sightline, it calculates the damping wing profile for a specific halo mass host of a quasar
 from .utils import calculate_t_vir
+from .config import constants as _constants
+# Snapshot imports for physical constants — never change, fine as-is
+from .config.constants import H0, Omega_m, Omega_lambda, Omega_k, Omega_b, c, G, h, \
+    Nion, R_alpha, Conversion_amu_Mpc, Conversion_kg_Solar_mass, Conversion_m_to_Mpc, \
+    dl, n_pixels
 #-----------------------------------------------------------------------------
 
 def Len(p: dict) -> int:
@@ -224,10 +228,10 @@ class Models():
                   cache_obj: p21c.OutputCache,
                   rank: Optional[int] = None,
                   Out_of_bound_parameters: Optional[SimParams] = None,
-                  seed: Optional[int] = 54321
+                  seed: Optional[int] = _constants.seed
                   ) -> None:
         '''
-        For a given set of initial conditions and astrophysical parameters, generates the simulation box and calculates the ensemble of damping wing profiles
+        For a given set of initial conditions and astrophysical parameters, it generates the simulation box and calculates the ensemble of damping wing profiles
         
         Parameters
         ----------
@@ -236,9 +240,9 @@ class Models():
         cache_obj: p21c.OutputCache
             Cache object and path to store the cache files from the simulation
         rank : list, optional
-            List of ranks over which we will calculate our models. The default is None, which corresponds to thee fiducial model.
+            List of ranks over which we will calculate our models. The default is None, which corresponds to the fiducial model.
         Out_of_bound_parameters
-            To run models outside of the range of given parameters space
+            To run models outside of the range of the given parameter space
         seed : Optional[int]
             Seed for the simulation box
         Returns
@@ -251,7 +255,7 @@ class Models():
             
             rank_index = -1
             
-            Parameters = dict(params)  # Using rest of the values from fiducial model
+            Parameters = dict(params)  # Using the rest of the values from the fiducial model
             Parameters.update(Out_of_bound_parameters)
             Parameters = dict(Out_of_bound_parameters)
             Parameters['T_vir'] = calculate_t_vir(z = Parameters['z'], xh = Parameters['target_xh'], m = Parameters['m_min'])
@@ -262,10 +266,10 @@ class Models():
             # Skewers calculations
             print("\nLoading the halo files and the ionized box")
             # Loading all the halos with their masses and coords, and the ionized and desnity of the box
-            self.halo_mass = pickle.load(open(f"{newpath}/Halo_masses_rank_{rank_index}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p","rb"))
-            self.halo_coords = pickle.load(open(f"{newpath}/Halo_coords_rank_{rank_index}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p","rb"))
-            self.ionised_box = pickle.load( open(f"{newpath}/Ionized_box_rank_{rank_index}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p", "rb" ))
-            self.density_field = pickle.load( open(f"{newpath}/Density_field_rank_{rank_index}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p", "rb" ))
+            self.halo_mass = pickle.load(open(f"{_constants.newpath}/Halo_masses_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.p","rb"))
+            self.halo_coords = pickle.load(open(f"{_constants.newpath}/Halo_coords_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.p","rb"))
+            self.ionised_box = pickle.load( open(f"{_constants.newpath}/Ionized_box_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.p", "rb" ))
+            self.density_field = pickle.load( open(f"{_constants.newpath}/Density_field_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.p", "rb" ))
             
             #Picking up all the masss bins
             mass_bins = np.unique(self.halo_mass)
@@ -279,7 +283,7 @@ class Models():
             halo_data_columns = ["Base", "Order", "No. of halos", "Halo Mass"]
             halo_opted = []
             
-            with open(f"{txt_files}/Halos_for_skewers_rank_{rank_index}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.txt", 'w') as f:
+            with open(f"{txt_files}/Halos_for_skewers_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.txt", 'w') as f:
                 for i in range(0,n_mass_bins,int(n_mass_bins/5)):
                     new_halo_mass, new_halo_coords, n_halos, o_halo_mass, base_halo_mass = self.halo_data(i)
                     halo_opted.append([base_halo_mass, o_halo_mass, n_halos, np.log10(new_halo_mass[0])])
@@ -336,10 +340,10 @@ class Models():
             # Skewers calculations
             print("\nLoading the halo files and the ionized box")
             # Loading all the halos with their masses and coords, and the ionized and desnity of the box
-            self.halo_mass = pickle.load(open(f"{newpath}/Halo_masses_rank_{rank_index}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p","rb"))
-            self.halo_coords = pickle.load(open(f"{newpath}/Halo_coords_rank_{rank_index}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p","rb"))
-            self.ionised_box = pickle.load( open(f"{newpath}/Ionized_box_rank_{rank_index}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p", "rb" ))
-            self.density_field = pickle.load( open(f"{newpath}/Density_field_rank_{rank_index}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p", "rb" ))
+            self.halo_mass = pickle.load(open(f"{_constants.newpath}/Halo_masses_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.p","rb"))
+            self.halo_coords = pickle.load(open(f"{_constants.newpath}/Halo_coords_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.p","rb"))
+            self.ionised_box = pickle.load( open(f"{_constants.newpath}/Ionized_box_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.p", "rb" ))
+            self.density_field = pickle.load( open(f"{_constants.newpath}/Density_field_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.p", "rb" ))
             
             #Picking up all the masss bins
             mass_bins = np.unique(self.halo_mass)
@@ -348,14 +352,14 @@ class Models():
 
             # breakpoint()
             
-            with open(f'{txt_files}/Additional_data_{rank_index}_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.txt', 'a') as f:
+            with open(f'{_constants.txt_files}/Additional_data_{rank_index}_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.txt', 'a') as f:
                 f.write(f'Mass bins {mass_bins} \n')     
                 
             halo_data_columns = ["Base", "Order", "No. of halos", "Halo Mass"]
             halo_opted = []
             
-            # with open(f"{txt_files}/Halos_for_skewers_rank_{rank_index}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.txt", 'w') as f:
-            with open(f"{txt_files}/Halos_for_skewers_rank_{rank_index}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}.txt", 'w') as f:
+            with open(f"{_constants.txt_files}/Halos_for_skewers_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.txt", 'w') as f:
+            # with open(f"{_constants.txt_files}/Halos_for_skewers_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}.txt", 'w') as f:
                 for i in range(0,n_mass_bins,int(n_mass_bins/5)):
                     new_halo_mass, new_halo_coords, n_halos, o_halo_mass, base_halo_mass = self.halo_data(i)
                     halo_opted.append([base_halo_mass, o_halo_mass, n_halos, np.log10(new_halo_mass[0])])
@@ -377,7 +381,7 @@ class Models():
                 p.start()
                 process.append(p)
             
-            if (n_mass_bins-1)%5:       # In case the (number of bins-1) is not the multiple of 5, then the last/most massive halo is skipped from the above loop, this section makes sure to always include the most massive halo in the picture
+            if (n_mass_bins-1)%5:       # In case the (number of bins-1) is not a multiple of 5, then the last/most massive halo is skipped from the above loop; this section makes sure always to include the most massive halo in the picture
                 i = n_mass_bins-1    
                 p = Process(target= self.damping_wings_calculations, args=(i, Parameters,rank_index))
                 p.start()
@@ -396,13 +400,13 @@ class Models():
                            initial_conditions: p21c.InitialConditions, 
                            cache_obj: p21c.OutputCache) -> float:
         '''
-        Objective function for brenth calibration. Returns normalised mean residual between expected and predicted transmission profiles.
+        Objective function for Brenth calibration. Returns normalised mean residual between expected and predicted transmission profiles.
         Parameters
         ----------
         calibrate_value : float
-            Desired value of the variable which needs to be calibrated
+            Desired value of the variable that needs to be calibrated
         calibrate_variable : str
-            Variable needs to be calibrated
+            The variable needs to be calibrated
         e_tau_avg_expected : NDArray[np.float64]
             Expected mean transmission profile
         initial_conditions: p21c.InitialConditions
@@ -428,7 +432,7 @@ class Models():
         order = []
         num_halos = []
         mass_halos = []
-        with open(f"{txt_files}/Halos_for_skewers_rank_-1_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.txt", 'r') as file:
+        with open(f"{_constants.txt_files}/Halos_for_skewers_rank_-1_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.txt", 'r') as file:
             for l in file.readlines():
                 b, o, n, m = l.strip().split(" ")
                 base.append(int(b))
@@ -441,7 +445,7 @@ class Models():
         num_halos = np.array(num_halos)
         mass_halos = np.array(mass_halos)
         
-        with h5py.File(f"{newpath}/skewers_HM_{base[-1]}_{order[-1]}_rank_-1_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.h5", 'r') as f:
+        with h5py.File(f"{_constants.newpath}/skewers_HM_{base[-1]}_{order[-1]}_rank_-1_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.h5", 'r') as f:
             lamda = f.get("lambda")[:]
             e_tau_avg_pred = f.get("e_tau_avg")[:]
             
@@ -493,7 +497,7 @@ class Models():
         lower_end: float
         upper_end: float
         
-        with open(f"{txt_files}/Halos_for_skewers_rank_{rank[0]}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.txt", 'r') as file:
+        with open(f"{_constants.txt_files}/Halos_for_skewers_rank_{rank[0]}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.txt", 'r') as file:
             for l in file.readlines():
                 b, o, n, m = l.strip().split(" ")
                 base.append(int(b))
@@ -507,7 +511,7 @@ class Models():
         
         mass_halos = np.array(mass_halos)
         
-        with h5py.File(f"{newpath}/skewers_HM_{base[-1]}_{order[-1]}_rank_{rank[0]}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.h5", 'r') as f:
+        with h5py.File(f"{_constants.newpath}/skewers_HM_{base[-1]}_{order[-1]}_rank_{rank[0]}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.h5", 'r') as f:
             lamda = f.get("lambda")[:]
             e_tau_avg_expected = f.get("e_tau_avg")[:]
         
