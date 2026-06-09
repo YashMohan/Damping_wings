@@ -112,9 +112,9 @@ def damping_wings(base: int, order: int, Parameters: SimParams, rank: int = 0) -
     None.
 
     '''
-    if not os.path.exists(newpath):
+    if not os.path.exists(_constants.newpath):
         raise FileNotFoundError(
-            f"Output directory '{newpath}' not found. "
+            f"Output directory '{_constants.newpath}' not found. "
             "Call setup_output_dirs() before running the pipeline."
         )
     
@@ -139,8 +139,8 @@ def damping_wings(base: int, order: int, Parameters: SimParams, rank: int = 0) -
     z = np.linspace(Parameters['z']-1.0,Parameters['z']+1.0,num=len_z) #range of z for which the damping wings will be calculated
     
     tau_avg = np.zeros(len_z)       # Averaged damping wing optical depth over all the sightlines
-    tau_z = np.zeros((N_sightlines,len_z))     # Damping wing optical depth for each sightline
-    e_tau_z = np.zeros((N_sightlines,len_z))     # Damping wing optical depth for each sightline
+    tau_z = np.zeros((_constants.N_sightlines,len_z))     # Damping wing optical depth for each sightline
+    e_tau_z = np.zeros((_constants.N_sightlines,len_z))     # Damping wing optical depth for each sightline
     
     low_quantile = np.zeros(len_z)
     mid_quantile = np.zeros(len_z)
