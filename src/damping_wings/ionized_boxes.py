@@ -289,7 +289,7 @@ def generate_ion_boxes(initial_conditions: p21c.InitialConditions, cache:  p21c.
     
     pickle.dump(ionized_field.get("neutral_fraction"),open( f"{newpath}/Ionized_box_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p", "wb" ))
     pickle.dump(perturbed_field.get("density"),open( f"{newpath}/Density_field_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p", "wb" ))
-    pickle.dump(Updated_Halo_field.get("halo_coords"),open( f"{newpath}/Halo_coords_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p", "wb" ))
+    pickle.dump(Halo_field.get("halo_coords"),open( f"{newpath}/Halo_coords_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p", "wb" ))
     pickle.dump(Updated_Halo_field.get("halo_masses"),open( f"{newpath}/Halo_masses_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.p", "wb" ))
     
     print("Plotting the slice of ionized box")    
