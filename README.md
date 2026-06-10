@@ -1,5 +1,6 @@
 # Damping Wings — Parametric Simulation & Fisher Matrix Inference Pipeline
 
+[![CI](https://github.com/YashMohan/Damping_wings/actions/workflows/ci.yml/badge.svg)](https://github.com/YashMohan/Damping_wings/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.9%2B-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Paper](https://img.shields.io/badge/Paper-ApJ%202025-orange)](https://doi.org/REPLACE_WITH_DOI)
@@ -172,6 +173,7 @@ constants.N_sightlines = 5000
 make test-unit
 
 # Integration tests — runs actual 21cmFAST simulation (~minutes, ~8GB RAM)
+
 make test-integration
 ```
 
