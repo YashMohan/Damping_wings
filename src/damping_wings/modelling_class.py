@@ -228,7 +228,8 @@ class Models():
                   cache_obj: p21c.OutputCache,
                   rank: Optional[int] = None,
                   Out_of_bound_parameters: Optional[SimParams] = None,
-                  seed: Optional[int] = _constants.seed
+                  seed: Optional[int] = None,
+                  target_mass_bins: Optional[list[float]] = None
                   ) -> None:
         '''
         For a given set of initial conditions and astrophysical parameters, it generates the simulation box and calculates the ensemble of damping wing profiles
@@ -245,15 +246,30 @@ class Models():
             To run models outside of the range of the given parameter space
         seed : Optional[int]
             Seed for the simulation box
+        target_mass_bins : Optional[list[float]]
+            In case the user wants to model a specific set of mass_bins
         Returns
         -------
         None.
         
         '''
+        mass_bins: NDArray[np.float64]
+        n_mass_bins: int
+        mass_indices: list[int]
+        halo_data_columns: list[str]
+        halo_opted: list[list]
+        process: list[Process]
+        start: float
+        end: float
+        Parameters: dict[str, float]
+        rank_index: int
+
+        if seed is None:
+            seed = _constants.seed
         
         if Out_of_bound_parameters is not None:
             
-            rank_index = -1
+            rank_index: int = -1  # always -1
             
             Parameters = dict(params)  # Using the rest of the values from the fiducial model
             Parameters.update(Out_of_bound_parameters)
@@ -266,31 +282,37 @@ class Models():
             # Skewers calculations
             print("\nLoading the halo files and the ionized box")
             # Loading all the halos with their masses and coords, and the ionized and desnity of the box
-            self.halo_mass = pickle.load(open(f"{_constants.newpath}/Halo_masses_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.p","rb"))
-            self.halo_coords = pickle.load(open(f"{_constants.newpath}/Halo_coords_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.p","rb"))
-            self.ionised_box = pickle.load( open(f"{_constants.newpath}/Ionized_box_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.p", "rb" ))
-            self.density_field = pickle.load( open(f"{_constants.newpath}/Density_field_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.p", "rb" ))
+            self.halo_mass = pickle.load(open(f"{_constants.newpath}/Halo_masses_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{seed}.p","rb"))
+            self.halo_coords = pickle.load(open(f"{_constants.newpath}/Halo_coords_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{seed}.p","rb"))
+            self.ionised_box = pickle.load( open(f"{_constants.newpath}/Ionized_box_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{seed}.p", "rb" ))
+            self.density_field = pickle.load( open(f"{_constants.newpath}/Density_field_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{seed}.p", "rb" ))
             
             #Picking up all the masss bins
             mass_bins = np.unique(self.halo_mass)
             n_mass_bins = len(mass_bins)
             print("\nMass bins: ", mass_bins)
             
-            with open(f'{txt_files}/Additional_data_{rank_index}_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.txt', 'a') as f:
+            with open(f'{_constants.txt_files}/Additional_data_{rank_index}_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{seed}.txt', 'a') as f:
                 f.write(f'Mass bins {mass_bins} \n')
                 
                 
             halo_data_columns = ["Base", "Order", "No. of halos", "Halo Mass"]
             halo_opted = []
+            if target_mass_bins is not None:
+                # Find indices of nearest available bins to requested M_qso values
+                mass_indices = [
+                    np.argmin(np.abs(mass_bins - m))
+                    for m in target_mass_bins
+                ]
+                mass_indices = list(np.unique(mass_indices))  # remove duplicates
+            else:
+                # Default — evenly spaced selection as before
+                mass_indices = list(range(0, n_mass_bins, int(n_mass_bins/5)))
+                if (n_mass_bins - 1) % 5:
+                    mass_indices.append(n_mass_bins - 1)  # always include most massive
             
-            with open(f"{txt_files}/Halos_for_skewers_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.txt", 'w') as f:
-                for i in range(0,n_mass_bins,int(n_mass_bins/5)):
-                    new_halo_mass, new_halo_coords, n_halos, o_halo_mass, base_halo_mass = self.halo_data(i)
-                    halo_opted.append([base_halo_mass, o_halo_mass, n_halos, np.log10(new_halo_mass[0])])
-                    f.write(f"{base_halo_mass} {o_halo_mass} {'{:.3e}'.format(n_halos)} {'{:.2f}'.format(np.log10(new_halo_mass[0]))}\n")
-                
-                if (n_mass_bins-1)%5:       # In case the (number of bins-1) is not the multiple of 5, then the last/most massive halo is skipped from the above loop, this section makes sure to always include the most massive halo in the picture
-                    i = n_mass_bins-1     
+            with open(f"{_constants.txt_files}/Halos_for_skewers_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{seed}.txt", 'w') as f:
+                for i in mass_indices:
                     new_halo_mass, new_halo_coords, n_halos, o_halo_mass, base_halo_mass = self.halo_data(i)
                     halo_opted.append([base_halo_mass, o_halo_mass, n_halos, np.log10(new_halo_mass[0])])
                     f.write(f"{base_halo_mass} {o_halo_mass} {'{:.3e}'.format(n_halos)} {'{:.2f}'.format(np.log10(new_halo_mass[0]))}\n")
@@ -300,28 +322,19 @@ class Models():
             process = []
             print("\nCalculating the sightlines")
             start = time.perf_counter()
-            for i in range(0,n_mass_bins,int(n_mass_bins/5)):
-                # create a process
-                p = Process(target= self.damping_wings_calculations, args=(i, Parameters,rank_index))
-                p.start()
-                process.append(p)
-            
-            if (n_mass_bins-1)%5:       # In case the (number of bins-1) is not the multiple of 5, then the last/most massive halo is skipped from the above loop, this section makes sure to always include the most massive halo in the picture
-                i = n_mass_bins-1    
+            for i in mass_indices:
                 p = Process(target= self.damping_wings_calculations, args=(i, Parameters,rank_index))
                 p.start()
                 process.append(p)
                 
             for p in process:
                 p.join()
-            
-            self.damping_wings_calculations(-1, Parameters, rank_index)
+                
             end = time.perf_counter()
             print("Elapsed (with compilation) = {}s".format((end - start)))
             
-            return 
-            
-    
+            return             
+
         if rank is None:
             rank = [0]
             
@@ -340,33 +353,36 @@ class Models():
             # Skewers calculations
             print("\nLoading the halo files and the ionized box")
             # Loading all the halos with their masses and coords, and the ionized and desnity of the box
-            self.halo_mass = pickle.load(open(f"{_constants.newpath}/Halo_masses_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.p","rb"))
-            self.halo_coords = pickle.load(open(f"{_constants.newpath}/Halo_coords_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.p","rb"))
-            self.ionised_box = pickle.load( open(f"{_constants.newpath}/Ionized_box_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.p", "rb" ))
-            self.density_field = pickle.load( open(f"{_constants.newpath}/Density_field_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.p", "rb" ))
+            self.halo_mass = pickle.load(open(f"{_constants.newpath}/Halo_masses_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{seed}.p","rb"))
+            self.halo_coords = pickle.load(open(f"{_constants.newpath}/Halo_coords_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{seed}.p","rb"))
+            self.ionised_box = pickle.load( open(f"{_constants.newpath}/Ionized_box_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{seed}.p", "rb" ))
+            self.density_field = pickle.load( open(f"{_constants.newpath}/Density_field_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{seed}.p", "rb" ))
             
             #Picking up all the masss bins
             mass_bins = np.unique(self.halo_mass)
             n_mass_bins = len(mass_bins)
             print("\nMass bins: ", mass_bins)
-
-            # breakpoint()
             
-            with open(f'{_constants.txt_files}/Additional_data_{rank_index}_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.txt', 'a') as f:
+            with open(f'{_constants.txt_files}/Additional_data_{rank_index}_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{seed}.txt', 'a') as f:
                 f.write(f'Mass bins {mass_bins} \n')     
                 
             halo_data_columns = ["Base", "Order", "No. of halos", "Halo Mass"]
             halo_opted = []
+            if target_mass_bins is not None:
+                # Find indices of nearest available bins to requested M_qso values
+                mass_indices = [
+                    np.argmin(np.abs(mass_bins - m))
+                    for m in target_mass_bins
+                ]
+                mass_indices = list(np.unique(mass_indices))  # remove duplicates
+            else:
+                # Default — evenly spaced selection as before
+                mass_indices = list(range(0, n_mass_bins, int(n_mass_bins/5)))
+                if (n_mass_bins - 1) % 5:
+                    mass_indices.append(n_mass_bins - 1)  # always include most massive
             
-            with open(f"{_constants.txt_files}/Halos_for_skewers_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.txt", 'w') as f:
-            # with open(f"{_constants.txt_files}/Halos_for_skewers_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}.txt", 'w') as f:
-                for i in range(0,n_mass_bins,int(n_mass_bins/5)):
-                    new_halo_mass, new_halo_coords, n_halos, o_halo_mass, base_halo_mass = self.halo_data(i)
-                    halo_opted.append([base_halo_mass, o_halo_mass, n_halos, np.log10(new_halo_mass[0])])
-                    f.write(f"{base_halo_mass} {o_halo_mass} {'{:.3e}'.format(n_halos)} {'{:.2f}'.format(np.log10(new_halo_mass[0]))}\n")
-                
-                if (n_mass_bins-1)%5:       # In case the (number of bins-1) is not the multiple of 5, then the last/most massive halo is skipped from the above loop, this section makes sure to always include the most massive halo in the picture
-                    i = n_mass_bins-1     
+            with open(f"{_constants.txt_files}/Halos_for_skewers_rank_{rank_index}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{seed}.txt", 'w') as f:
+                for i in mass_indices:
                     new_halo_mass, new_halo_coords, n_halos, o_halo_mass, base_halo_mass = self.halo_data(i)
                     halo_opted.append([base_halo_mass, o_halo_mass, n_halos, np.log10(new_halo_mass[0])])
                     f.write(f"{base_halo_mass} {o_halo_mass} {'{:.3e}'.format(n_halos)} {'{:.2f}'.format(np.log10(new_halo_mass[0]))}\n")
@@ -376,13 +392,7 @@ class Models():
             process = []
             print("\nCalculating the sightlines")
             start = time.perf_counter()
-            for i in range(0,n_mass_bins,int(n_mass_bins/5)):
-                p = Process(target= self.damping_wings_calculations, args=(i, Parameters,rank_index))
-                p.start()
-                process.append(p)
-            
-            if (n_mass_bins-1)%5:       # In case the (number of bins-1) is not a multiple of 5, then the last/most massive halo is skipped from the above loop; this section makes sure always to include the most massive halo in the picture
-                i = n_mass_bins-1    
+            for i in mass_indices:
                 p = Process(target= self.damping_wings_calculations, args=(i, Parameters,rank_index))
                 p.start()
                 process.append(p)
