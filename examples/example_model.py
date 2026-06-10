@@ -58,7 +58,7 @@ if __name__ == '__main__':
         'alpha_esc_list': np.linspace(-2,0,nn),    # alpha escape
         'alpha_star_list': np.linspace(0,1,nn),    # alpha star
         'f_star_list': np.linspace(-2,-0.25,nn),   # f star
-        'tq_list': np.linspace(0,Parameters['tq']*30,nn)   # Quasar lifetime
+        'tq_list': np.linspace(3,Parameters['tq'] + 1.477,nn)   # Quasar lifetime in log space and years
         }
 
     model = Models(param_ranges)
