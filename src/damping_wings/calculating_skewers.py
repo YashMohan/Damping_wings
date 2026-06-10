@@ -74,7 +74,7 @@ def generate_densities(
     the halo, hence ionising the nearby region, which is represented by the sphere of radius Rion.
 
     Args:
-        tq (float): quasar lifetime
+        tq (float): quasar lifetime in log10 scale with years as units
         X (NDArray[np.float64]): X coordinates of all the skewers
         Y (NDArray[np.float64]): Y coordinates of all the skewers
         Z (NDArray[np.float64]): Z coordinates of all the skewers
@@ -85,6 +85,7 @@ def generate_densities(
     Returns:
         tuple[NDArray[np.float64], NDArray[np.float64], float]: neutral fraction and density along the length of the skewer, and the size of the ionised bubble
     """
+    tq_secs: float = 10**(tq + 7.499)    # Converting tq in linear scale and into seconds
     len_z: int = n_pixels
     z_red: NDArray[np.float64] = np.linspace(Parameters['z'],Parameters['z']-1.0,num=len_z)  # redshift space over which we will calculate our damping wings, it has the same size as the number of pixels 
     tol: float = 0.5    # Tolerance value for ionized sphere around a halo
@@ -104,16 +105,14 @@ def generate_densities(
     # Need to get the quasar lifetime drawn from a distribution, rather than just a single number
     # The distribution will be lognormal with tq as the mean value and a standard deviation of 0.5
     # dist = lognorm.pdf(total,mean,stddev)     
-    if tq == 0:    # If the quasar is off
+    if tq <= 3:    # If the quasar is off, we are assuming that any quasar that is on for less than 1000 years is basically off
         for j in range (0,n_pixels):
             xh[j] = interp_ionised_box([X[j],Y[j],Z[j]])[0]  
             den[j] = interp_density_field([X[j],Y[j],Z[j]])[0]         
             
         return xh, den, Rion
             
-    # If the quasar is on, then it will carve up a range of ionized gas around the halo with the 'radius' = Rion. Note: It is not exactly a sphere
-    
-
+    # If the quasar is on, then it will carve up a range of ionized gas around the halo with the 'radius' = Rion. Note: It is not exactly a sphere    
     for k in range(0,n_pixels-1):
         del_r = -(z_red[k+1] - z_red[k])*c/(H(z_red[k])*(1+z_red[k]))
         r[k+1] = r[k] + del_r
@@ -125,7 +124,7 @@ def generate_densities(
         n_ion_sum[k+1] = n_ion_sum[k] + n_HI*4*np.pi*r[k+1]*r[k+1]*del_r  
 
     for l in range(n_pixels-1,0,-1):        
-        if(np.abs(n_ion_sum[l] - Nion*tq)/(Nion*tq)<=tol):
+        if(np.abs(n_ion_sum[l] - Nion*tq_secs)/(Nion*tq_secs)<=tol):
             Rion = r[l]  # Radius of the ionized sphere
             break
     for j in range (0,n_pixels):
@@ -237,10 +236,8 @@ def calculate_skewers(base_halo_mass: int, o_halo_mass: int, new_halo_coords: ND
         
         xi, yi, zi = sample_spherical(1)
 
-        tq = Parameters['tq']/86400/365.25 # In years 
-        mu, sigma = np.log10(tq), 0.8
-        log_tq = np.random.normal(mu, sigma, 1)
-        tq_final = 10**(log_tq)*86400*365.25
+        mu, sigma = Parameters['tq'], 0.8
+        tq_final = np.random.normal(mu, sigma, 1)
         
         X[i] = halo_x_coord[Random_halo[i]] + dr*xi
         Y[i] = halo_y_coord[Random_halo[i]] + dr*yi
