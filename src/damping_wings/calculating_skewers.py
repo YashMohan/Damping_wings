@@ -19,17 +19,17 @@ import sys
 from numba import jit
 import pickle
 import py21cmfast as p21c
-from .config.constants import SimParams, newpath, H0, G, Omega_b, Omega_k, Omega_lambda, Omega_m, c, Nion, Conversion_amu_Mpc, L_Box, HII_DIM, DIM, txt_files, n_pixels, dl, N_sightlines,  seed
 from .utils import H
+# Module import for configurable constants — read dynamically at call time
+from .config import constants as _constants
+# Snapshot imports for physical constants — never change, fine as-is
+from .config.constants import H0, Omega_m, Omega_lambda, Omega_k, Omega_b, c, G, h, \
+    Nion, R_alpha, Conversion_amu_Mpc, Conversion_kg_Solar_mass, Conversion_m_to_Mpc, \
+    dl, n_pixels, SimParams, SimParamsRanges
 #-----------------------------------------------------------------------------
 # Seed
 np.random.seed(1000)
-random.seed(1000)
-
-if not os.path.exists(newpath):
-    print("Could not find the directory to load data")
-    sys.exit()
-    
+random.seed(1000)    
 #-----------------------------------------------------------------------------
 dr = np.arange(0,n_pixels,dl)    # Distance travelled across any vector
 
@@ -38,7 +38,7 @@ dr = np.arange(0,n_pixels,dl)    # Distance travelled across any vector
 # @jit(nopython=True)
 def sample_spherical(npoints: int, ndim: int= 3) -> NDArray[np.float64]:
     '''
-    This function gives n_points on the surface of n_dimensional sphere
+    This function gives n_points on the surface of an n-dimensional sphere
 
     Parameters
     ----------
@@ -74,7 +74,7 @@ def generate_densities(
     the halo, hence ionising the nearby region, which is represented by the sphere of radius Rion.
 
     Args:
-        tq (float): quasar lifetime
+        tq (float): quasar lifetime in log10 scale with years as units
         X (NDArray[np.float64]): X coordinates of all the skewers
         Y (NDArray[np.float64]): Y coordinates of all the skewers
         Z (NDArray[np.float64]): Z coordinates of all the skewers
@@ -83,46 +83,48 @@ def generate_densities(
         Parameters (SimParams): Simulation parameters
 
     Returns:
-        tuple[NDArray[np.float64], NDArray[np.float64], float]: neutral fraction and density along the length of skewer, and the size of the ionised bubble
+        tuple[NDArray[np.float64], NDArray[np.float64], float]: neutral fraction and density along the length of the skewer, and the size of the ionised bubble
     """
+    tq_secs: float = 10**(tq + 7.499)    # Converting tq in linear scale and into seconds
     len_z: int = n_pixels
     z_red: NDArray[np.float64] = np.linspace(Parameters['z'],Parameters['z']-1.0,num=len_z)  # redshift space over which we will calculate our damping wings, it has the same size as the number of pixels 
-    tol: float = 0.5    # Tolerence value for ionized sphere around a halo
+    tol: float = 0.5    # Tolerance value for ionized sphere around a halo
     Rion: float = 0.0   # Radius of the sphere
     xh: NDArray[np.float64] = np.zeros(n_pixels) # Calculating the x_h along (X,Y,Z)
     den: NDArray[np.float64] = np.zeros(n_pixels) # Calculating the density along (X,Y,Z)
-    n_ion_sum: NDArray[np.float64] = np.zeros(n_pixels)   # Calculating the total number of ionized gas within a Range of radius r carved by quasar
+    n_ion_sum: NDArray[np.float64] = np.zeros(n_pixels)   # Calculating the total number of ionized gas within a Range of radius r carved by the quasar
     r: NDArray[np.float64] = np.zeros(n_pixels)    # Calculating the length of the skewer
     # sphere_index: int = 0
     xh: NDArray[np.float64]     # Interpolated values of xH along the skewer
     den: NDArray[np.float64]    # Interpolated values of density along the skewer
+    XH: float
+    DEN: float
+    n_HI: float                 # Neutral hydrogen density for a given pixel
 
     #-----------------------------------------------------------------------------
     # Need to get the quasar lifetime drawn from a distribution, rather than just a single number
-    # The distribution will be lognormal with tq as mean value and std deviation of 0.5
+    # The distribution will be lognormal with tq as the mean value and a standard deviation of 0.5
     # dist = lognorm.pdf(total,mean,stddev)     
-    if tq == 0:    # If the quasar is off
+    if tq <= 3:    # If the quasar is off, we are assuming that any quasar that is on for less than 1000 years is basically off
         for j in range (0,n_pixels):
-            xh[j] = interp_ionised_box([X[j],Y[j],Z[j]])  
-            den[j] = interp_density_field([X[j],Y[j],Z[j]])         
+            xh[j] = interp_ionised_box([X[j],Y[j],Z[j]])[0]  
+            den[j] = interp_density_field([X[j],Y[j],Z[j]])[0]         
             
-        return xh,den, Rion
+        return xh, den, Rion
             
-    # If the quasar is on then it will carve up some Range of ionized gas around the halo with the 'radius' = Rion. Note: It is not exacatly a sphere
-    
-
+    # If the quasar is on, then it will carve up a range of ionized gas around the halo with the 'radius' = Rion. Note: It is not exactly a sphere    
     for k in range(0,n_pixels-1):
         del_r = -(z_red[k+1] - z_red[k])*c/(H(z_red[k])*(1+z_red[k]))
         r[k+1] = r[k] + del_r
-        XH = interp_ionised_box([X[k],Y[k],Z[k]])
-        DEN = interp_density_field([X[k],Y[k],Z[k]])
+        XH = interp_ionised_box([X[k],Y[k],Z[k]])[0]
+        DEN = interp_density_field([X[k],Y[k],Z[k]])[0]
         
         rho_c = (3*H(z_red[k])**2)*Conversion_amu_Mpc/(8*np.pi*G)
         n_HI = Omega_b*rho_c*XH*(DEN+1)
         n_ion_sum[k+1] = n_ion_sum[k] + n_HI*4*np.pi*r[k+1]*r[k+1]*del_r  
 
     for l in range(n_pixels-1,0,-1):        
-        if(np.abs(n_ion_sum[l] - Nion*tq)/(Nion*tq)<=tol):
+        if(np.abs(n_ion_sum[l] - Nion*tq_secs)/(Nion*tq_secs)<=tol):
             Rion = r[l]  # Radius of the ionized sphere
             break
     for j in range (0,n_pixels):
@@ -130,8 +132,8 @@ def generate_densities(
             xh[j] = 0.0  # Within Rion, all the gas is ionized
             # sphere_index = j
         else:
-            xh[j] = interp_ionised_box([X[j],Y[j],Z[j]])   
-        den[j] = interp_density_field([X[j],Y[j],Z[j]])
+            xh[j] = interp_ionised_box([X[j],Y[j],Z[j]])[0]
+        den[j] = interp_density_field([X[j],Y[j],Z[j]])[0]
     
     return xh, den, Rion
     
@@ -151,11 +153,11 @@ def calculate_skewers(base_halo_mass: int, o_halo_mass: int, new_halo_coords: ND
     new_halo_coords : Array
         x,y,z coordinates of the halos in the given mass bin
     ionised_box : Array
-        Neutral fraction at each pixels in the box
+        Neutral fraction at each pixel in the box
     density_field : Array
         Density of matter at each pixel in the box
     rank : Integer, Optional
-        Tells the code which parameter file to pick. If no rank is provided then it picks the rank -1, which is the default Parameters file.
+        Tells the code which parameter file to pick. If no rank is provided, then it picks rank -1, which is the default Parameters file.
 
 
     Returns
@@ -163,6 +165,12 @@ def calculate_skewers(base_halo_mass: int, o_halo_mass: int, new_halo_coords: ND
     None.
 
     '''
+
+    if not os.path.exists(_constants.newpath):
+        raise FileNotFoundError(
+            f"Output directory '{_constants.newpath}' not found. "
+            "Call setup_output_dirs() before running the pipeline."
+        )
     
     #----------------------------------------------------------------------------------------------------------------------------------------------------------
     # Storing x,y and z coords of the halos separately
@@ -179,7 +187,7 @@ def calculate_skewers(base_halo_mass: int, o_halo_mass: int, new_halo_coords: ND
     Z: NDArray[np.float64]  # Z coordinates of all the skewers
     Random_halo: NDArray[np.float64]   # A set of random halos selected from the total list of halos
     Rion: NDArray[np.float64]   # The radius of the bubble ionized by the halo
-    sphere_index: NDArray[np.float64]   # The pixel of the radius along the length of skewer
+    sphere_index: NDArray[np.float64]   # The pixel of the radius along the length of the skewer
     xi: float # x coordinate of random direction vector
     yi: float # y coordinate of random direction vector
     zi: float # z coordinate of random direction vector
@@ -189,14 +197,14 @@ def calculate_skewers(base_halo_mass: int, o_halo_mass: int, new_halo_coords: ND
     xh: NDArray[np.float64] # Neutral fraction along the length of skewer
     den: NDArray[np.float64] # Density along the length of skewer
    
-    halo_x_coord = new_halo_coords[:,0]*L_Box/HII_DIM
-    halo_y_coord = new_halo_coords[:,1]*L_Box/HII_DIM
-    halo_z_coord = new_halo_coords[:,2]*L_Box/HII_DIM
+    halo_x_coord = new_halo_coords[:,0]*_constants.L_Box/_constants.HII_DIM
+    halo_y_coord = new_halo_coords[:,1]*_constants.L_Box/_constants.HII_DIM
+    halo_z_coord = new_halo_coords[:,2]*_constants.L_Box/_constants.HII_DIM
     
     
-    xx = np.linspace(0,HII_DIM-1,HII_DIM)
-    yy = np.linspace(0,HII_DIM-1,HII_DIM)
-    zz = np.linspace(0,HII_DIM-1,HII_DIM)
+    xx = np.linspace(0,_constants.HII_DIM-1,_constants.HII_DIM)
+    yy = np.linspace(0,_constants.HII_DIM-1,_constants.HII_DIM)
+    zz = np.linspace(0,_constants.HII_DIM-1,_constants.HII_DIM)
     
     interp_ionised_box = RegularGridInterpolator((xx,yy,zz), ionised_box)
     interp_density_field = RegularGridInterpolator((xx,yy,zz), density_field)
@@ -210,29 +218,26 @@ def calculate_skewers(base_halo_mass: int, o_halo_mass: int, new_halo_coords: ND
     
     # Storing the coordinates along the sightline for each halo
     
-    X = [[]*n_pixels]*N_sightlines
-    Y = [[]*n_pixels]*N_sightlines
-    Z = [[]*n_pixels]*N_sightlines   
-    xh = [[]*n_pixels]*N_sightlines 
-    den = [[]*n_pixels]*N_sightlines 
+    X = [[]*n_pixels]*_constants.N_sightlines
+    Y = [[]*n_pixels]*_constants.N_sightlines
+    Z = [[]*n_pixels]*_constants.N_sightlines   
+    xh = [[]*n_pixels]*_constants.N_sightlines 
+    den = [[]*n_pixels]*_constants.N_sightlines 
            
-    Random_halo = np.zeros(N_sightlines, dtype=int) 
+    Random_halo = np.zeros(_constants.N_sightlines, dtype=int) 
     
-    Rion = np.zeros(N_sightlines)
-    sphere_index = np.zeros(N_sightlines)
+    Rion = np.zeros(_constants.N_sightlines)
+    sphere_index = np.zeros(_constants.N_sightlines)
     
-    for i in range(0,N_sightlines):
+    for i in range(0,_constants.N_sightlines):
         Random_halo[i] = random.randrange(len(halo_x_coord))    # Picks up a random halo from the given range of halos
 
-        
-    for i in range(0,N_sightlines):   # Loop over all sightlines
+    for i in range(0,_constants.N_sightlines):   # Loop over all sightlines
         
         xi, yi, zi = sample_spherical(1)
 
-        tq = Parameters['tq']/86400/365.25 # In years 
-        mu, sigma = np.log10(tq), 0.8
-        log_tq = np.random.normal(mu, sigma, 1)
-        tq_final = 10**(log_tq)*86400*365.25
+        mu, sigma = Parameters['tq'], 0.8
+        tq_final = np.random.normal(mu, sigma, 1)
         
         X[i] = halo_x_coord[Random_halo[i]] + dr*xi
         Y[i] = halo_y_coord[Random_halo[i]] + dr*yi
@@ -240,15 +245,14 @@ def calculate_skewers(base_halo_mass: int, o_halo_mass: int, new_halo_coords: ND
         
         
         #Enabling the periodic boundary condition
-        X[i] = X[i] - (HII_DIM-1)*(np.floor(X[i])//(HII_DIM-1))
-        Y[i] = Y[i] - (HII_DIM-1)*(np.floor(Y[i])//(HII_DIM-1))
-        Z[i] = Z[i] - (HII_DIM-1)*(np.floor(Z[i])//(HII_DIM-1))
+        X[i] = X[i] - (_constants.HII_DIM-1)*(np.floor(X[i])//(_constants.HII_DIM-1))
+        Y[i] = Y[i] - (_constants.HII_DIM-1)*(np.floor(Y[i])//(_constants.HII_DIM-1))
+        Z[i] = Z[i] - (_constants.HII_DIM-1)*(np.floor(Z[i])//(_constants.HII_DIM-1))
         
         xh[i], den[i], Rion[i] = generate_densities(tq_final, X[i], Y[i], Z[i], interp_ionised_box, interp_density_field, Parameters)
+               
         
-        
-        
-    with h5py.File(f"{newpath}/xh_den_HM_{base_halo_mass}_{o_halo_mass}_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_seed_{seed}.h5", 'w') as f:    
+    with h5py.File(f"{_constants.newpath}/xh_den_HM_{base_halo_mass}_{o_halo_mass}_rank_{rank}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}__constants.seed_{_constants.seed}.h5", 'w') as f:    
         f.create_dataset("xh", data = xh)
         f.create_dataset("den", data = den)
         f.create_dataset("Rion", data = Rion)

@@ -17,7 +17,7 @@ cache_path: str = os.path.join(newpath, 'cache_files')
 #-----------------------------------------------------------------------------
 class SimParams(TypedDict):
     z: float
-    M_min: float
+    m_min: float
     target_xh: float
     alpha_esc: float
     alpha_star: float

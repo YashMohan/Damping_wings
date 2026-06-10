@@ -15,14 +15,14 @@ import h5py
 from numba import jit
 import statistics
 import py21cmfast as p21c
-from .config.constants import SimParams, newpath, H0, Omega_b, Omega_k, Omega_lambda, Omega_m, Nion, Conversion_amu_Mpc, L_Box, HII_DIM, DIM, txt_files, R_alpha, c, n_pixels, dl, N_sightlines
 from .config import parameters_file as params
 from .utils import H
-#-----------------------------------------------------------------------------
-
-#---------------------------------------------------------------------------
-if not os.path.exists(newpath):
-    sys.exit()
+# Module import for configurable constants — read dynamically at call time
+from .config import constants as _constants
+# Snapshot imports for physical constants — never change, fine as-is
+from .config.constants import H0, Omega_m, Omega_lambda, Omega_k, Omega_b, c, G, h, \
+    Nion, R_alpha, Conversion_amu_Mpc, Conversion_kg_Solar_mass, Conversion_m_to_Mpc, \
+    dl, n_pixels, SimParams, SimParamsRanges
 #-----------------------------------------------------------------------------
 
 @jit(nopython=True)
@@ -103,15 +103,20 @@ def damping_wings(base: int, order: int, Parameters: SimParams, rank: int = 0) -
     base : Integer
         Base of the value of halo mass, it is provided to separate halos and their data files
     order : Integer
-        Order of the value of halo mass, it is provided to separate halos and their data files
+        Order of the value of halo mass, is provided to separate halos and their data files
     rank : Integer, Optional
-        Tells the code which parameter file to pick. If no rank is provided then it picks the rank -1, which is the default Parameters file.
+        Tells the code which parameter file to pick. If no rank is provided, then it picks the rank -1, which is the default Parameters file.
 
     Returns
     -------
     None.
 
     '''
+    if not os.path.exists(_constants.newpath):
+        raise FileNotFoundError(
+            f"Output directory '{_constants.newpath}' not found. "
+            "Call setup_output_dirs() before running the pipeline."
+        )
     
     len_z: int # Pixel length of redshift array
     z: NDArray[np.float64]  # Redshift along the skewer sightline 
@@ -130,12 +135,12 @@ def damping_wings(base: int, order: int, Parameters: SimParams, rank: int = 0) -
     #----------------------------------------------------------------------------------------------------------------------------------------------------------    
     # Change len_z to twice of n_pixels and make it faster using numba
     
-    len_z = n_pixels  # The length of redshift space is same as n_pixels, it allows me to equate tau_z[j] with z while calculating damping wing, hence making the calculation much faster as I'm using the vectors now
+    len_z = n_pixels  # The length of redshift space is the same as n_pixels, which allows me to equate tau_z[j] with z while calculating the damping wing, hence making the calculation much faster as I'm using the vectors now
     z = np.linspace(Parameters['z']-1.0,Parameters['z']+1.0,num=len_z) #range of z for which the damping wings will be calculated
     
     tau_avg = np.zeros(len_z)       # Averaged damping wing optical depth over all the sightlines
-    tau_z = np.zeros((N_sightlines,len_z))     # Damping wing optical depth for each sightline
-    e_tau_z = np.zeros((N_sightlines,len_z))     # Damping wing optical depth for each sightline
+    tau_z = np.zeros((_constants.N_sightlines,len_z))     # Damping wing optical depth for each sightline
+    e_tau_z = np.zeros((_constants.N_sightlines,len_z))     # Damping wing optical depth for each sightline
     
     low_quantile = np.zeros(len_z)
     mid_quantile = np.zeros(len_z)
@@ -144,7 +149,7 @@ def damping_wings(base: int, order: int, Parameters: SimParams, rank: int = 0) -
     var = np.zeros(len_z)
     
     # print("In damping wing function")    
-    with h5py.File(f"{newpath}/xh_den_HM_{base}_{order}_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_Rion_sphere_index.h5", 'r') as f:
+    with h5py.File(f"{_constants.newpath}/xh_den_HM_{base}_{order}_rank_{rank}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.h5", 'r') as f:
         Xh = f.get("xh")[:]
         Den = f.get("den")[:]
     
@@ -164,7 +169,7 @@ def damping_wings(base: int, order: int, Parameters: SimParams, rank: int = 0) -
     e_tau_avg = np.exp(-tau_avg)
     
     
-    with h5py.File(f"{newpath}/skewers_HM_{base}_{order}_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_Rion.h5", 'w') as f:    
+    with h5py.File(f"{_constants.newpath}/skewers_HM_{base}_{order}_rank_{rank}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.h5", 'w') as f:    
         f.create_dataset("lambda", data = lamda)
         f.create_dataset("tau", data = tau_z)
         f.create_dataset("tau_avg", data = tau_avg)
@@ -182,15 +187,13 @@ def damping_wings(base: int, order: int, Parameters: SimParams, rank: int = 0) -
         var[i] = statistics.variance(e_tau_z[:,i])
     
     sd = np.sqrt(var)    
-    with h5py.File(f"{newpath}/quantile_data_{base}_{order}_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_Rion.h5", 'w') as f:  
-        
+    with h5py.File(f"{_constants.newpath}/quantile_data_{base}_{order}_rank_{rank}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.h5", 'w') as f:  
         f.create_dataset("low_quantile", data = low_quantile)
         f.create_dataset("mid_quantile", data = mid_quantile)
         f.create_dataset("up_quantile", data = up_quantile)
         f.create_dataset("diff_quantile", data = diff_quantile)
         
-    with h5py.File(f"{newpath}/statistics_{base}_{order}_rank_{rank}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}_Rion.h5", 'w') as f:  
-        
+    with h5py.File(f"{_constants.newpath}/statistics_{base}_{order}_rank_{rank}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.h5", 'w') as f:  
         f.create_dataset("variance", data = var)
         f.create_dataset("standard_deviation", data = sd)
         

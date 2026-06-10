@@ -9,11 +9,14 @@ from matplotlib.ticker import AutoMinorLocator, MultipleLocator
 from matplotlib.figure import Figure
 from numba import njit
 import corner
-
-
-from .config.constants import SimParams, SimParamsRanges, N_sightlines, newpath, plotpath, H0, Omega_b, Omega_k, Omega_lambda, Omega_m, Nion, Conversion_amu_Mpc, L_Box, HII_DIM, DIM, txt_files, c, seed
 from .config.parameters_file import Parameters as params 
 from .modelling_class import Models 
+# Module import for configurable constants — read dynamically at call time
+from .config import constants as _constants
+# Snapshot imports for physical constants — never change, fine as-is
+from .config.constants import H0, Omega_m, Omega_lambda, Omega_k, Omega_b, c, G, h, \
+    Nion, R_alpha, Conversion_amu_Mpc, Conversion_kg_Solar_mass, Conversion_m_to_Mpc, \
+    dl, n_pixels, SimParams, SimParamsRanges
 
 def add_proxy(
     clean_data: NDArray[np.float64],
@@ -232,10 +235,10 @@ def differentiation(ranks: list[int],
     mean_sampled_delta_SW_2: NDArray[np.float64]    # Mean sampled scatter-width profile of the model perturbed to the right for derivative
     delta_h: list[list]                             # stores the delta_x denominator for derivative 
     
-    with h5py.File(f"{newpath}/skewers_HM_{M_qso_base}_{M_qso_order}_rank_{ranks[1]}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}.h5", 'r') as f:
+    with h5py.File(f"{_constants.newpath}/skewers_HM_{M_qso_base}_{M_qso_order}_rank_{ranks[1]}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.h5", 'r') as f:
         tau_1 = f.get("tau")[:]
     
-    with h5py.File(f"{newpath}/skewers_HM_{M_qso_base}_{M_qso_order}_rank_{ranks[0]}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}.h5", 'r') as f:
+    with h5py.File(f"{_constants.newpath}/skewers_HM_{M_qso_base}_{M_qso_order}_rank_{ranks[0]}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.h5", 'r') as f:
         tau_2 = f.get("tau")[:]
         
     # Adding proximity zone
@@ -422,7 +425,7 @@ def fisher_matrix(N_sample: int,
     mean_values: NDArray[np.float64]                    # The true values of the parameters
     
     # Loading the fiducial data, adding the proximity zone and noise to it
-    with h5py.File(f"{newpath}/skewers_HM_{M_qso_fiducial[0]}_{M_qso_fiducial[1]}_rank_0_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}.h5", 'r') as f:
+    with h5py.File(f"{_constants.newpath}/skewers_HM_{M_qso_fiducial[0]}_{M_qso_fiducial[1]}_rank_0_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.h5", 'r') as f:
         lamda = f.get("lambda")[:]
         tau_fiducial = f.get("tau")[:]
 
@@ -467,10 +470,10 @@ def fisher_matrix(N_sample: int,
     base_halo_mass = [int(np.round(10*M_qso/(10**o),0)) for M_qso, o in zip(M_qso_masses,o_halo_mass) ]
     print(base_halo_mass, o_halo_mass)
 
-    with h5py.File(f"{newpath}/skewers_HM_{base_halo_mass[0]}_{o_halo_mass[0]}_rank_{0}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}.h5", 'r') as f:
+    with h5py.File(f"{_constants.newpath}/skewers_HM_{base_halo_mass[0]}_{o_halo_mass[0]}_rank_{0}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.h5", 'r') as f:
         tau_1 = f.get("tau")[:]
 
-    with h5py.File(f"{newpath}/skewers_HM_{base_halo_mass[1]}_{o_halo_mass[1]}_rank_{0}_no_halofield_DIM_{DIM}_HII_{HII_DIM}_L_{L_Box}_N_{N_sightlines}.h5", 'r') as f:
+    with h5py.File(f"{_constants.newpath}/skewers_HM_{base_halo_mass[1]}_{o_halo_mass[1]}_rank_{0}_no_halofield_DIM_{_constants.DIM}_HII_{_constants.HII_DIM}_L_{_constants.L_Box}_N_{_constants.N_sightlines}_seed_{_constants.seed}.h5", 'r') as f:
         tau_2 = f.get("tau")[:]
 
     # Adding proximity zone
@@ -523,19 +526,19 @@ def fisher_matrix(N_sample: int,
     fig_DW = plotting_fisher_matrix(DW_sample)
     axes = np.array(fig_DW.axes).reshape(len(fisher_parameters.keys()), len(fisher_parameters.keys()))  # Adjust for the number of parameters
     axes[0,2].set_title(f"Damping Wing SNR_A {SNR_A} SNR_M {SNR_M}")
-    plt.savefig(f'{plotpath}/DW_contour_plot_SNR_A_{SNR_A}SNR_M_{SNR_M}_N_{N_data_points}_N_sample_{N_sample}.png')
+    plt.savefig(f'{_constants.plotpath}/DW_contour_plot_SNR_A_{SNR_A}SNR_M_{SNR_M}_N_{N_data_points}_N_sample_{N_sample}.png')
     plt.close()
     
     fig_SW = plotting_fisher_matrix(SW_sample)
     axes = np.array(fig_SW.axes).reshape(4, 4)  # Adjust for the number of parameters
     axes[0,2].set_title(f"Scatter Width SNR_A {SNR_A} SNR_M {SNR_M}")
-    plt.savefig(f'{plotpath}/SW_contour_plot_SNR_A_{SNR_A}SNR_M_{SNR_M}_N_{N_data_points}_N_sample_{N_sample}.png')
+    plt.savefig(f'{_constants.plotpath}/SW_contour_plot_SNR_A_{SNR_A}SNR_M_{SNR_M}_N_{N_data_points}_N_sample_{N_sample}.png')
     plt.close()
     
     fig_combined = plotting_fisher_matrix(combined_sample)
     axes = np.array(fig_combined.axes).reshape(4, 4)  # Adjust for the number of parameters
     axes[0,2].set_title(f"Combined SNR_A {SNR_A} SNR_M {SNR_M}")
-    plt.savefig(f'{plotpath}/Combined_contour_plot_SNR_A_{SNR_A}SNR_M_{SNR_M}_N_{N_data_points}_N_sample_{N_sample}.png')
+    plt.savefig(f'{_constants.plotpath}/Combined_contour_plot_SNR_A_{SNR_A}SNR_M_{SNR_M}_N_{N_data_points}_N_sample_{N_sample}.png')
     plt.close()
 
     return corr_cov_fisher_matrix_DW, corr_cov_fisher_matrix_SW, combined_corr_fisher_matrix, combined_corr_cov_fisher_matrix

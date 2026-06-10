@@ -7,36 +7,25 @@ dependencies:
   - python=3.11
 
   # ── C system libraries required by py21cmfast ────────────────────────────────
-  - gsl>=2.7               # GNU Scientific Library
-  - fftw>=3.3              # Fast Fourier Transform library
-  - gcc                    # C compiler
-  - gxx                    # C++ compiler
+  - fftw>=3.3
+  - gsl>=2.7
+  - compilers          # gcc/gxx toolchain for C extensions
+  - pkg-config
 
   # ── Core scientific Python stack ─────────────────────────────────────────────
-  - numpy>=1.24
-  - scipy>=1.10
-  - matplotlib>=3.7
-  - astropy>=5.3
-  - h5py>=3.8
-  - numba>=0.57
-
-  # ── 21cmFAST and its dependencies (conda-forge only) ────────────────────────
-  - py21cmfast>=4.0
-  - hmf>=3.4
+  - click
+  - pyyaml
+  - cffi
+  - attrs
 
   # ── Package-specific dependencies ────────────────────────────────────────────
   - ordered-set>=4.1
   - tabulate>=0.9
   - tqdm>=4.65
 
-  # ── Dev tools ────────────────────────────────────────────────────────────────
-  - pytest>=7.4
-  - pytest-cov>=4.1
-
-  # ── pip-installed packages (not available via conda-forge) ───────────────────
+  # ── pip-installed packages ────────────────────────────────────────────────────
   - pip
   - pip:
-    - mypy>=1.5
-    - ruff>=0.1
+    - 21cmFAST
+    - hmf
     - hatchling
-  #  - damping-wings     # installs your package itself in editable mode  - commented out as I have not created the dist yet
