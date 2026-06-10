@@ -5,5 +5,5 @@ Parameters = {
     'alpha_esc': -0.5,  # Escape fraction power law slope
     'alpha_star': 0.5,  # Star formation efficiency power law slope
     'f_star': -1.125,   # Star formation efficiency [log10]
-    'tq': 13.499      # Quasar lifetime [log10 secs]
+    'tq': 6      # Quasar lifetime [log10 years]
 }
